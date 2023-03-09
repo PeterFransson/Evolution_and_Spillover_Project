@@ -1,4 +1,4 @@
-#Simple SI-model example with one species and one adaptive trait (β)
+#Simple SI-model example with one species and one adaptive pathogen trait (β)
 #Here we asume the trait and mutation distribution are normal distributed 
 
 #ODE system describing the dynamics of the epi-evolutionary model 
