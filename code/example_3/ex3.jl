@@ -60,7 +60,7 @@ function run_ex3()
     z_vec = range(0.0,stop=1.0,length=Nₚ+1)    
 
     μ_a,σ²_a,amplitude_a = 0.2,0.0025,0.6
-    μ_b,σ²_b,amplitude_b = 0.75,0.0025,0.6 #0.3
+    μ_b,σ²_b,amplitude_b = 0.4,0.0025,0.6 #0.3
 
     γ_a(z) = γ_fun(z,μ_a,σ²_a,amplitude_a)
     γ_b(z) = γ_fun(z,μ_b,σ²_b,amplitude_b)    
