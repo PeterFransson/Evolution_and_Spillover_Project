@@ -1,4 +1,4 @@
-#Test: stocastic simulation using Gillespie algorithm [1] 
+#Test: stocastic SI-model simulation using Gillespie algorithm [1] 
 #
 #References
 #[1] Gillespie, D. T. (1977). Exact stochastic simulation of
@@ -37,7 +37,7 @@ function SI_Gillespie(S,I,t,p)
     end
 end
 
-function run_Gillespie(S₀,I₀,t₀,p)    
+function run_Gillespie(S₀,I₀,t₀,p,n_samples)    
     t_end = p[4]
     S = S₀
     I = I₀
@@ -46,46 +46,42 @@ function run_Gillespie(S₀,I₀,t₀,p)
     S_vec = [S]
     I_vec = [I₀]
 
-    while t<t_end
-        S,I,t = SI_Gillespie(S,I,t,p)        
+    Δt_sample = (t_end-t₀)/n_samples
+    sample_nr = 1
 
-        push!(S_vec,S)
-        push!(I_vec,I)
-        push!(t_vec,t)        
+    while t<t_end
+        S,I,t = SI_Gillespie(S,I,t,p)    
+
+        if t>t₀+sample_nr*Δt_sample
+            push!(S_vec,S)
+            push!(I_vec,I)
+            push!(t_vec,t) 
+            sample_nr += 1
+        end       
     end
     return (S_vec,I_vec,t_vec)
 end
 
-function filter_Gillespie(S_vec,I_vec,t_vec,n)
-    l = length(t_vec)
-    if l>n
-        Δ = floor(Integer,(l-1)/(n-1))
-        return S_vec[1:Δ:l],I_vec[1:Δ:l],t_vec[1:Δ:l]
-    end
-    return nothing
-end
-
 function run_ex4()
     c = 0.1 #Recovery rate
-    β = 0.3 #Transmission rate    
-    N = 10^6 #Population size 
+    β = 0.09 #Transmission rate    
+    N = 10^3 #Population size 
     
-    I₀ = 100
+    I₀ = 10
     S₀ = N-I₀   
     t₀ = 0.0
     t_end = 200.0
     
     p = (c,β,N,t_end)
-    @time S_vec,I_vec,t_vec = run_Gillespie(S₀,I₀,t₀,p)     
-    S_vec,I_vec,t_vec = filter_Gillespie(S_vec,I_vec,t_vec,200)
-        
+    n_sample = 200
+    @time S_vec,I_vec,t_vec = run_Gillespie(S₀,I₀,t₀,p,n_sample)     
+            
     plt = plot(t_vec,S_vec,ylabel="time",legend=false)
     plot!(plt,t_vec,I_vec)  
 
-    for i in 1:40
-        @time S_vec,I_vec,t_vec = run_Gillespie(S₀,I₀,t₀,p)     
-        S_vec,I_vec,t_vec = filter_Gillespie(S_vec,I_vec,t_vec,200)
-
+    for i in 1:100
+        @time S_vec,I_vec,t_vec = run_Gillespie(S₀,I₀,t₀,p,n_sample)     
+        
         plot!(plt,t_vec,S_vec)
         plot!(plt,t_vec,I_vec)  
     end
