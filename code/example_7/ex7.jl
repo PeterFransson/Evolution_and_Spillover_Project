@@ -1,5 +1,5 @@
-#Test: stocastic one species evolutionary SI-model simulation using Gillespie algorithm [1] 
-#
+#Test: stocastic one species evolutionary SI-model simulation using Gillespie algorithm
+#with simple within-host competition
 
 mutable struct Infected
     number::Vector{Integer}  
@@ -60,13 +60,15 @@ function SI_Gillespie!(S::Vector{U},
             resident_strategy = I[pathogen_strains].strategy
             dₘ = Normal(resident_strategy,σₘ)
             mutant_strategy = min(max(rand(dₘ),0.0),1.0)
-            I_z_mutant = zeros(eltype(I_z),n_species)
-            I_z_mutant[species]+=1
-            push!(I,Infected(I_z_mutant,mutant_strategy))
-            if sum(I_z)-1>0
-                I[pathogen_strains].number[species] -= 1
-            else
-                popat!(I,pathogen_strains)
+            if γ[species](mutant_strategy)>γ[species](resident_strategy)
+                I_z_mutant = zeros(eltype(I_z),n_species)
+                I_z_mutant[species]+=1
+                push!(I,Infected(I_z_mutant,mutant_strategy))
+                if sum(I_z)-1>0
+                    I[pathogen_strains].number[species] -= 1
+                else
+                    popat!(I,pathogen_strains)
+                end
             end
             return t+Δt 
         elseif state==3 #infection
@@ -138,7 +140,7 @@ function draw_strain_distribution(t_vec,I_vec,img_name)
         legends=false,
         ylims=(0,0.1),xlim=(0,1))        
     end
-    gif(strain_distribution, "./fig/ex6/"*img_name*".gif", fps = 15)      
+    gif(strain_distribution, "./fig/ex7/"*img_name*".gif", fps = 15)      
 end
 
 function draw_strain_evolution_plot(t_vec,I_vec,t₀,t_end,img_name)
@@ -148,15 +150,15 @@ function draw_strain_evolution_plot(t_vec,I_vec,t₀,t_end,img_name)
         time_vec = [time for strain in strain_dist]
         plot!(plt,time_vec,strategies,seriestype=:scatter)              
     end    
-    savefig(plt,"./fig/ex6/"*img_name*".svg")
+    savefig(plt,"./fig/ex7/"*img_name*".svg")
 end
 
-function run_ex6()
+function run_ex7()
     Nₚ = 200
     z_vec = range(0.0,stop=1.0,length=Nₚ+1)
 
     μ_a,σ²_a,amplitude_a = 0.2,0.0025,0.6
-    μ_b,σ²_b,amplitude_b = 0.4,0.0025,0.6 #0.3
+    μ_b,σ²_b,amplitude_b = 0.35,0.0025,0.6 #0.3
 
     γ_a(z) = γ_fun(z,μ_a,σ²_a,amplitude_a)
     γ_b(z) = γ_fun(z,μ_b,σ²_b,amplitude_b) 
@@ -198,7 +200,7 @@ function run_ex6()
 
     
     t₀ = 0.0
-    t_end = 1500.0
+    t_end = 2500.0
 
     K = [K_aa K_ab;K_ab K_bb]
     γ = (γ_a,γ_b)
@@ -231,4 +233,4 @@ function run_ex6()
     =#
 end
 
-run_ex6()
+run_ex7()
