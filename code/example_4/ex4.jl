@@ -70,7 +70,7 @@ function run_ex4()
     I₀ = 10
     S₀ = N-I₀   
     t₀ = 0.0
-    t_end = 200.0
+    t_end = 300.0
     
     p = (c,β,N,t_end)
     n_sample = 200
