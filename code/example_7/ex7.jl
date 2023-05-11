@@ -73,7 +73,8 @@ function SI_Gillespie!(S::Vector{U},
             return t+Δt 
         elseif state==3 #infection
             I[pathogen_strains].number[species] += 1
-            S[species]-=1
+            S[species]-=1            
+
             return t+Δt 
         else
             error("State error: sate either i, m, or r")
@@ -93,7 +94,7 @@ function run_Gillespie!(S::Vector{T},
     t = t₀
     t_vec = [t]
     S_vec = typeof(S)[]
-    push!(S_vec,S) ##
+    push!(S_vec,copy(S))
 
     I_vec = typeof(I)[] 
     push!(I_vec,copy(I))     
@@ -108,7 +109,7 @@ function run_Gillespie!(S::Vector{T},
 
         if t>t₀+sample_nr*Δt_sample
             println("$(sample_nr)/$(n_samples)")
-            push!(S_vec,S) ##          
+            push!(S_vec,copy(S))         
             push!(t_vec,t) 
             push!(n_variants,length(I))
             if  length(I)>0
@@ -138,7 +139,7 @@ function draw_strain_distribution(t_vec,I_vec,img_name)
         q_strain,
         seriestype=:scatter,
         legends=false,
-        ylims=(0,0.1),xlim=(0,1))        
+        xlim=(0,1))        
     end
     gif(strain_distribution, "./fig/ex7/"*img_name*".gif", fps = 15)      
 end
