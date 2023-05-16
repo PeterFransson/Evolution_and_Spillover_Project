@@ -1,4 +1,4 @@
-#Test: stocastic one species evolutionary SI-model simulation using Gillespie algorithm
+#Test: stocastic two species evolutionary SI-model simulation using Gillespie algorithm
 #with simple within-host competition
 
 mutable struct Infected
@@ -97,7 +97,8 @@ function run_Gillespie!(S::Vector{T},
     push!(S_vec,copy(S))
 
     I_vec = typeof(I)[] 
-    push!(I_vec,copy(I))     
+    push!(I_vec,deepcopy(I)) 
+      
     n_variants = [length(I)]
     mean_strategy = [mean([strain.strategy for strain in I])]
     
@@ -113,16 +114,16 @@ function run_Gillespie!(S::Vector{T},
             push!(t_vec,t) 
             push!(n_variants,length(I))
             if  length(I)>0
-                push!(mean_strategy,mean([infected.strategy for infected in I]))
-                #push!(I_vec,sum([infected.number for infected in I]))
-                push!(I_vec,copy(I))                  
+                push!(mean_strategy,mean([infected.strategy for infected in I]))                
+                push!(I_vec,deepcopy(I))                  
             else
                 push!(mean_strategy,0.0)
                 push!(I_vec,Infected[])
             end
             sample_nr += 1            
         end       
-    end    
+    end 
+        
     return (S_vec,I_vec,t_vec,n_variants,mean_strategy)
 end
 
@@ -154,12 +155,32 @@ function draw_strain_evolution_plot(t_vec,I_vec,t₀,t_end,img_name)
     savefig(plt,"./fig/ex7/"*img_name*".svg")
 end
 
+function draw_compartments(t_vec,I_vec,S_vec,img_name)    
+    n_species = length(S_vec[1])
+    n_time = length(t_vec)
+    I_plot_mat = zeros(n_time,n_species)
+    S_plot_mat = zeros(n_time,n_species)
+    for t_idx in 1:n_time
+        n_strains = length(I_vec[t_idx])
+        for strain_idx in 1:n_strains            
+            I_plot_mat[t_idx,:]+=I_vec[t_idx][strain_idx].number
+        end
+        S_plot_mat[t_idx,:]+=S_vec[t_idx]
+    end    
+    plt = plot(xlabel="Time",legend=false)
+    for species_idx in 1:n_species
+        plot!(plt,t_vec,S_plot_mat[:,species_idx])
+        plot!(plt,t_vec,I_plot_mat[:,species_idx])
+    end
+    savefig(plt,"./fig/ex7/"*img_name*".svg")
+end
+
 function run_ex7()
     Nₚ = 200
     z_vec = range(0.0,stop=1.0,length=Nₚ+1)
 
     μ_a,σ²_a,amplitude_a = 0.2,0.0025,0.6
-    μ_b,σ²_b,amplitude_b = 0.35,0.0025,0.6 #0.3
+    μ_b,σ²_b,amplitude_b = 0.4,0.0025,0.6 #0.3
 
     γ_a(z) = γ_fun(z,μ_a,σ²_a,amplitude_a)
     γ_b(z) = γ_fun(z,μ_b,σ²_b,amplitude_b) 
@@ -201,7 +222,7 @@ function run_ex7()
 
     
     t₀ = 0.0
-    t_end = 2500.0
+    t_end = 1000.0
 
     K = [K_aa K_ab;K_ab K_bb]
     γ = (γ_a,γ_b)
@@ -211,27 +232,18 @@ function run_ex7()
 
     n_samples = 50
 
-    S_vec,I_vec,t_vec,n_variants,mean_strategy = run_Gillespie!(S,I,t₀,p,n_samples) 
+    S_vec,I_vec,t_vec,n_variants,mean_strategy = run_Gillespie!(S,I,t₀,p,n_samples)     
     
     draw_strain_distribution(t_vec,I_vec,"strain_evo")
     draw_strain_evolution_plot(t_vec,I_vec,t₀,t_end,"trait_vs_time")
+    draw_compartments(t_vec,I_vec,S_vec,"compartments")    
 
     pl1 = plot(t_vec,mean_strategy)
     pl1 = plot!([t₀,t_end],[μ_a,μ_a])
     pl1 = plot!([t₀,t_end],[μ_b,μ_b])
     pl2 = plot(t_vec,n_variants)    
     
-    plot(pl1,pl2,layout=(2,1),legneds=false)
-    
-    #=
-    pl3 = plot(t_vec,S_vec)
-    pl3 = plot!(t_vec,I_vec)
-    pl3 = plot!([t₀,t_end],[I_eq,I_eq])
-
-    l = @layout [a b;c]
-
-    plot(pl1,pl2,pl3,layout=l,legends=false)
-    =#
+    plot(pl1,pl2,layout=(2,1),legneds=false)    
 end
 
 run_ex7()

@@ -1,4 +1,4 @@
-#Test: stocastic one species evolutionary SI-model simulation using Gillespie algorithm [1] 
+#Test: stocastic two species evolutionary SI-model simulation using Gillespie algorithm [1] 
 #
 
 mutable struct Infected

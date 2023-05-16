@@ -64,8 +64,8 @@ end
 
 function run_ex4()
     c = 0.1 #Recovery rate
-    β = 0.09 #Transmission rate    
-    N = 10^3 #Population size 
+    β = 0.101 #Transmission rate    
+    N = 10^4 #Population size 
     
     I₀ = 10
     S₀ = N-I₀   
@@ -73,13 +73,13 @@ function run_ex4()
     t_end = 300.0
     
     p = (c,β,N,t_end)
-    n_sample = 200
+    n_sample = 100
     @time S_vec,I_vec,t_vec = run_Gillespie(S₀,I₀,t₀,p,n_sample)     
             
     plt = plot(t_vec,S_vec,ylabel="time",legend=false)
     plot!(plt,t_vec,I_vec)  
 
-    for i in 1:100
+    for i in 1:500
         @time S_vec,I_vec,t_vec = run_Gillespie(S₀,I₀,t₀,p,n_sample)     
         
         plot!(plt,t_vec,S_vec)
