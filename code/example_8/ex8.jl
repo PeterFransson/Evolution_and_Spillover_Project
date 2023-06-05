@@ -1,14 +1,50 @@
 #Test: stocastic two species evolutionary SI-model simulation using Gillespie algorithm
-#with simple within-host competition [updated algorithm]
+#with simple within-host competition [updated algorithm] discrete
 
 mutable struct Infected
     number::Vector{Integer}  
     strategy::Real
 end
 
+#Simpson's 1/3 rule
+simpson13(f,a,b) = (b-a)*(f(a)+4*f((a+b)/2)+f(b))/6
+#Discretize a continuous positive function f
+function cont2disc(f,disc_samples)
+    n = length(disc_samples)
+    areas = simpson13.(Ref(f),disc_samples[1:n-1],disc_samples[2:n])
+    area_tot = sum(areas)
+    return areas/area_tot
+end
+
 normal_d(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))/sqrt(2*π*σ²)
 γ_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))
 τ_fun(r,rand_num) = -log(rand_num)/r
+
+function find_weighted_idx(rnd::R,c_prob::Vector{R}) where {R<:Real}
+    #c_prob is the cumulative probablity vector for all indices
+    idx = findfirst(rnd.<c_prob)
+    return idx
+end
+
+#Calculate strategy value of pathogen_idx∈[1,2,…,nₚ]
+z_fun(pathogen_idx::Integer,nₚ::Integer) = (pathogen_idx-0.5)/nₚ
+
+#Create mutation probabilities. Note pathogen strategy z∈[0,1]
+function create_mutation_matrix(nₚ::T,σₘ::R) where {T<:Integer,R<:Real}
+    m = zeros(nₚ,nₚ)
+    c_m = zeros(nₚ,nₚ)
+    disc_samples = [(i-1)/nₚ for i in 1:nₚ+1]
+    for i in 1:nₚ
+        μₘ = z_fun(i,nₚ) 
+        f(x) = normal_d(x,μₘ,σₘ) 
+        m_prob = cont2disc(f,disc_samples)
+        c_m_prob = cumsum(m_prob)
+
+        m[i,:] = m_prob
+        c_m[i,:] = c_m_prob
+    end
+    return (m,c_m)
+end 
 
 function SI_Gillespie!(S::Vector{U},
     I::Vector{Infected},
@@ -177,8 +213,8 @@ function draw_compartments(t_vec,I_vec,S_vec,img_name)
     savefig(plt,"./fig/ex7/"*img_name*".svg")
 end
 
-function run_ex7()
-    Nₚ = 200
+function run_ex8()    
+    Nₚ = 100 #Number of strains 
     z_vec = range(0.0,stop=1.0,length=Nₚ+1)
 
     μ_a,σ²_a,amplitude_a = 0.2,0.0025,0.6
@@ -190,15 +226,15 @@ function run_ex7()
     #Plot strategy
     plot(z_vec,γ_a.(z_vec),label="Species A",
     xlabel="Strategy",ylabel="γ") 
-    plot(z_vec,γ_b.(z_vec),label="Species B")   
-
+    plot(z_vec,γ_b.(z_vec),label="Species B")     
+    
     #Parameters
     K_aa = 0.425
     K_bb = 0.425
     K_ab = 0.3 
     c = 0.1
     μₘ = 0.05
-    
+
     z_start = 0.2    
 
     #Initial states
@@ -210,6 +246,10 @@ function run_ex7()
     S₀_b = N_b-I_b₀ 
     σₘ = 0.05#0.0158
 
+    #Calculate mutation matrix
+    m,c_m = create_mutation_matrix(Nₚ,σₘ)
+
+    #=
     S = [S₀_a,S₀_b] 
     I = [Infected([I_a₀,I_b₀],z_start)]  
 
@@ -246,6 +286,7 @@ function run_ex7()
     pl2 = plot(t_vec,n_variants)    
     
     plot(pl1,pl2,layout=(2,1),legneds=false)    
+    =#
 end
 
-run_ex7()
+run_ex8()
