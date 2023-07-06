@@ -267,7 +267,7 @@ function run_ex9()
     plot!(z_vec,γ_c.(z_vec)*K_cc/c,label="Species C")
     
     t₀ = 0.0
-    t_end = 1000.0
+    t_end = 2000.0
 
     K = [K_aa K_ab K_ac;K_ab K_bb K_bc;K_ac K_bc K_cc]
     γ = (γ_a,γ_b,γ_c)
