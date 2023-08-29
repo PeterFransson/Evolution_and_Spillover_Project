@@ -70,6 +70,28 @@ function find_new_strategy(u₀,tspan,p,γ_prim)
     return (strategy*(1+sign(r_m_prim)*0.0001),u₀_new)
 end
 
+function draw_curvature(p,u₀,tspan,delta;n_point::Integer=100)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+
+    eq_point = find_eq(u₀,tspan,p)
+
+    S_a_eq,S_b_eq = eq_point.S_a,eq_point.S_b
+    I_a_eq,I_b_eq = eq_point.I_a,eq_point.I_b
+
+    I = I_a_eq+I_b_eq
+    q_a = I_a_eq/I
+    q_b = I_b_eq/I
+
+    K_N_mean_a =  K_aa/N_a*q_a+K_ab/N_b*q_b
+    K_N_mean_b = K_ab/N_a*q_a+K_bb/N_b*q_b 
+
+    r_m(z) = γ_a(z)*S_a_eq*K_N_mean_a+γ_b(z)*S_b_eq*K_N_mean_b-c 
+
+    z_vec = range(strategy-delta,stop=strategy+delta,length=n_point)
+
+    return (r_m.(z_vec),z_vec)
+end
+
 function run()
     Nₚ = 200
     z_vec = range(0.0,stop=1.0,length=Nₚ+1) 

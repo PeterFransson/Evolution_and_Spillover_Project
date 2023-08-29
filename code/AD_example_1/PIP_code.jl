@@ -7,7 +7,7 @@ function draw_PIP()
     #Parameters
     K_aa = 0.425
     K_bb = 0.425
-    K_ab = 0.3 
+    K_ab = 0.3#0.3 
 
     c = 0.1    
 
@@ -68,6 +68,11 @@ function draw_PIP()
     plot!([0.0,1.0],[0.0,1.0])
     plot!([μ_a,μ_a],[0.0,1.0])
     plot!([μ_b,μ_b],[0.0,1.0])
+    savefig("./fig/AD_example_1/pip.svg")
+
+    p = c,γ_a,γ_b,0.275,K_aa,K_bb,K_ab,N_a,N_b
+    r_val,z_val = draw_curvature(p,u₀,tspan,0.001;n_point=150)
+    plot(z_val,r_val)
 end
 
 draw_PIP()
