@@ -180,7 +180,7 @@ function run_ex7()
     z_vec = range(0.0,stop=1.0,length=Nₚ+1)
 
     μ_a,σ²_a,amplitude_a = 0.2,0.0025,0.6
-    μ_b,σ²_b,amplitude_b = 0.4,0.0025,0.6 #0.3
+    μ_b,σ²_b,amplitude_b = 0.27,0.0025,0.6 #0.3
 
     γ_a(z) = γ_fun(z,μ_a,σ²_a,amplitude_a)
     γ_b(z) = γ_fun(z,μ_b,σ²_b,amplitude_b) 
@@ -195,7 +195,7 @@ function run_ex7()
     K_bb = 0.425
     K_ab = 0.3 
     c = 0.1
-    μₘ = 0.05
+    μₘ = 0.01#0.05
     
     z_start = 0.2    
 
@@ -206,7 +206,7 @@ function run_ex7()
     N_b = 10^3     
     I_b₀ = 0
     S₀_b = N_b-I_b₀ 
-    σₘ = 0.05#0.0158
+    σₘ = 0.0158 #0.05#0.0158
 
     S = [S₀_a,S₀_b] 
     I = [Infected([I_a₀,I_b₀],z_start)]  
@@ -222,7 +222,7 @@ function run_ex7()
 
     
     t₀ = 0.0
-    t_end = 1000.0
+    t_end = 2000.0
 
     K = [K_aa K_ab;K_ab K_bb]
     γ = (γ_a,γ_b)

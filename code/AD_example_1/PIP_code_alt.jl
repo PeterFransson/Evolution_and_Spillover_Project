@@ -1,3 +1,21 @@
+function calc_R0(p)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+    γ_aa = γ_a(strategy)
+    γ_bb = γ_b(strategy)
+    K_L = [γ_aa*K_aa/c γ_aa*K_ab*N_a/(N_b*c);γ_bb*K_ab*N_b/(N_a*c) γ_bb*K_bb/c]
+
+    return abs((tr(K_L)+sqrt(tr(K_L)^2-4*det(K_L)))/2)
+end
+
+function calc_R0_m(p,S_a_eq,S_b_eq,strategy_m)
+    c,γ_a,γ_b,strategy_r,K_aa,K_bb,K_ab,N_a,N_b = p
+    γ_aa = γ_a(strategy_m)
+    γ_bb = γ_b(strategy_m)
+    K_L = [γ_aa*K_aa*S_a_eq/(c*N_a) γ_aa*K_ab*S_a_eq/(N_b*c);γ_bb*K_ab*S_b_eq/(N_a*c) γ_bb*K_bb*S_b_eq/(c*N_b)]
+
+    return abs((tr(K_L)+sqrt(tr(K_L)^2-4*det(K_L)))/2)
+end
+
 function draw_PIP()
     Nₚ = 1000
     z_start = 0.1
@@ -5,7 +23,6 @@ function draw_PIP()
     z_vec = range(z_start,stop=z_end,length=Nₚ) 
 
     r_m_mat = zeros(Nₚ,Nₚ)
-    r_m_mat_alt = zeros(Nₚ,Nₚ)
 
     #Parameters
     K_aa = 0.425
@@ -23,7 +40,7 @@ function draw_PIP()
     S₀_b = N_b-I_b₀ 
 
     μ_a,σ²_a,amplitude_a = 0.2,0.0025,0.6
-    μ_b,σ²_b,amplitude_b = 0.32,0.0025,0.6
+    μ_b,σ²_b,amplitude_b = 0.3,0.0025,0.6
 
     γ_a(z) = γ_fun(z,μ_a,σ²_a,amplitude_a)
     γ_b(z) = γ_fun(z,μ_b,σ²_b,amplitude_b)
@@ -64,19 +81,11 @@ function draw_PIP()
             mutant_strain = z_vec[i]  
             
             if R0_val>1.0
-                if γ_a(mutant_strain)>=γ_a(resident_strain)&&r_m(mutant_strain,1.0,0.0)>0.0
-                    r_m_mat[i,col_idx]=1 
-                end  
-
-                if γ_b(mutant_strain)>=γ_b(resident_strain)&&r_m(mutant_strain,0.0,1.0)>0.0
-                    r_m_mat[i,col_idx]=1
-                end                 
                 if calc_R0_m(p,S_a_eq,S_b_eq,mutant_strain)>1.0
-                    r_m_mat_alt[i,col_idx]=1
-                end
+                    r_m_mat[i,col_idx]=1 
+                end                  
             else
                 r_m_mat[i,col_idx]=0.5
-                r_m_mat_alt[i,col_idx]=0.5
             end                 
         end        
     end
@@ -85,13 +94,7 @@ function draw_PIP()
     plot!([z_start,z_end],[z_start,z_end])
     plot!([μ_a,μ_a],[z_start,z_end])
     plot!([μ_b,μ_b],[z_start,z_end],legend=false)
-    savefig("./fig/AD_example_1/pip.svg")    
-
-    heatmap(z_vec,z_vec,r_m_mat_alt)
-    plot!([z_start,z_end],[z_start,z_end])
-    plot!([μ_a,μ_a],[z_start,z_end])
-    plot!([μ_b,μ_b],[z_start,z_end],legend=false)
-    savefig("./fig/AD_example_1/pip_alt.svg") 
+    savefig("./fig/AD_example_1/pip_alt.svg")    
 end
 
 draw_PIP()

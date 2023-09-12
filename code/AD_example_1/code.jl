@@ -55,19 +55,37 @@ function find_new_strategy(u₀,tspan,p,γ_prim)
     S_a_eq,S_b_eq = eq_point.S_a,eq_point.S_b
     I_a_eq,I_b_eq = eq_point.I_a,eq_point.I_b
 
-    @show I = I_a_eq+I_b_eq
-    @show q_a = I_a_eq/I
-    @show q_b = I_b_eq/I
+    I = I_a_eq+I_b_eq
+    q_a = I_a_eq/I
+    q_b = I_b_eq/I
 
-    @show K_N_mean_a =  K_aa/N_a*q_a+K_ab/N_b*q_b
-    @show K_N_mean_b = K_ab/N_a*q_a+K_bb/N_b*q_b     
+    K_N_mean_a =  K_aa/N_a*q_a+K_ab/N_b*q_b
+    K_N_mean_b = K_ab/N_a*q_a+K_bb/N_b*q_b     
     
     r_m_prim_fun(z) = γ_a_prim(z)*S_a_eq*K_N_mean_a+γ_b_prim(z)*S_b_eq*K_N_mean_b
 
-    @show r_m_prim = r_m_prim_fun(strategy)
+    r_m_prim = r_m_prim_fun(strategy)
     u₀_new = [S_a_eq S_b_eq;I_a_eq I_b_eq]
 
-    return (strategy*(1+sign(r_m_prim)*0.0001),u₀_new)
+    return (strategy*(1+sign(r_m_prim)*0.001),u₀_new)
+end
+
+function calc_R0(p)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+    γ_aa = γ_a(strategy)
+    γ_bb = γ_b(strategy)
+    K_L = [γ_aa*K_aa/c γ_aa*K_ab*N_a/(N_b*c);γ_bb*K_ab*N_b/(N_a*c) γ_bb*K_bb/c]
+
+    return abs((tr(K_L)+sqrt(tr(K_L)^2-4*det(K_L)))/2)
+end
+
+function calc_R0_m(p,S_a_eq,S_b_eq,strategy_m)
+    c,γ_a,γ_b,strategy_r,K_aa,K_bb,K_ab,N_a,N_b = p
+    γ_aa = γ_a(strategy_m)
+    γ_bb = γ_b(strategy_m)
+    K_L = [γ_aa*K_aa*S_a_eq/(c*N_a) γ_aa*K_ab*S_a_eq/(N_b*c);γ_bb*K_ab*S_b_eq/(N_a*c) γ_bb*K_bb*S_b_eq/(c*N_b)]
+
+    return abs((tr(K_L)+sqrt(tr(K_L)^2-4*det(K_L)))/2)
 end
 
 function draw_curvature(p,u₀,tspan,delta;n_point::Integer=100)

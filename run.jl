@@ -1,4 +1,5 @@
 using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
+using LinearAlgebra
 
 #include("code/example_1/ex1.jl")
 #include("code/Trait_Plot/Trait_Plot.jl")
@@ -10,4 +11,7 @@ using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
 #include("./code/example_7/ex7.jl")
 #include("./code/example_9/ex9.jl")
 include("./code/AD_example_1/code.jl")
-include("./code/AD_example_1/PIP_code.jl")
+#include("./code/AD_example_1/PIP_code.jl")
+include("./code/AD_example_1/AD_hill_climb.jl")
+#include("./code/AD_example_1/PIP_code_alt.jl")
+#include("./code/AD_example_1/within_host_PIP_code.jl")
