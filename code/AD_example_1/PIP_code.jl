@@ -23,7 +23,7 @@ function draw_PIP()
     S₀_b = N_b-I_b₀ 
 
     μ_a,σ²_a,amplitude_a = 0.2,0.0025,0.6
-    μ_b,σ²_b,amplitude_b = 0.32,0.0025,0.6
+    μ_b,σ²_b,amplitude_b = 0.37,0.0025,0.6
 
     γ_a(z) = γ_fun(z,μ_a,σ²_a,amplitude_a)
     γ_b(z) = γ_fun(z,μ_b,σ²_b,amplitude_b)
@@ -92,6 +92,11 @@ function draw_PIP()
     plot!([μ_a,μ_a],[z_start,z_end])
     plot!([μ_b,μ_b],[z_start,z_end],legend=false)
     savefig("./fig/AD_example_1/pip_alt.svg") 
+
+    p = c,γ_a,γ_b,0.2,K_aa,K_bb,K_ab,N_a,N_b
+    draw_vector_field(p,1.0,N_a-1,20,1.0,N_b,20)
+
+    find_eq([1.0;1.0],p)
 end
 
 draw_PIP()

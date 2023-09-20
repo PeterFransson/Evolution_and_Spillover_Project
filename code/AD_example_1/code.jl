@@ -46,6 +46,59 @@ function find_eq(u₀,tspan,p)
     return eq_point
 end
 
+function system_res!(F,I,p)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+
+    γ_aa = γ_a(strategy)
+    γ_bb = γ_b(strategy)
+
+    I_a = I[1]
+    I_b = I[2]
+
+    S_a = N_a-I_a
+    S_b = N_b-I_b
+
+    temp_a = S_a*γ_aa*(I_a*K_aa/N_a+I_b*K_ab/N_b)
+    temp_b = S_b*γ_bb*(I_a*K_ab/N_a+I_b*K_bb/N_b)      
+       
+    F[1] = temp_a-c*I_a
+    F[2] = temp_b-c*I_b
+    
+end
+function system_res_J!(J,I,p)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+
+    γ_aa = γ_a(strategy)
+    γ_bb = γ_b(strategy)
+
+    I_a = I[1]
+    I_b = I[2]
+
+    S_a = N_a-I_a
+    S_b = N_b-I_b  
+    
+    #dI_a=-I_a^2*γ_aa*K_aa/N_a-I_a*I_b*γ_aa*K_ab/N_b+I_a*(γ_aa*K_aa-c)+I_b*N_a*γ_aa*K_ab/N_b
+    #dI_a=-I_b^2*γ_bb*K_bb/N_b-I_a*I_b*γ_bb*K_ab/N_a+I_b*(γ_bb*K_bb-c)+I_a*N_b*γ_bb*K_ab/N_a
+
+    J[1,1] = -2*I_a*γ_aa*K_aa/N_a-I_b*γ_aa*K_ab/N_b+(γ_aa*K_aa-c)
+    J[1,2] = -I_a*γ_aa*K_ab/N_b+N_a*γ_aa*K_ab/N_b
+    J[2,1] = -I_b*γ_bb*K_ab/N_a+N_b*γ_bb*K_ab/N_a
+    J[2,2] = -2*I_b*γ_bb*K_bb/N_b-I_a*γ_bb*K_ab/N_a+(γ_bb*K_bb-c)
+
+end
+
+#Find equilibrium point
+function find_eq(I₀,p)     
+
+   f!(F,I) = system_res!(F,I,p)  
+   j!(F,I) = system_res_J!(F,I,p) 
+   
+    ans = nlsolve(f!, j!, I₀)
+
+    #eq_point = EqPoint(S_a_eq,S_b_eq,I_a_eq,I_b_eq)
+    return ans
+end
+
 function find_new_strategy(u₀,tspan,p,γ_prim)
     c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
     γ_a_prim,γ_b_prim = γ_prim
@@ -77,6 +130,40 @@ function calc_R0(p)
     K_L = [γ_aa*K_aa/c γ_aa*K_ab*N_a/(N_b*c);γ_bb*K_ab*N_b/(N_a*c) γ_bb*K_bb/c]
 
     return abs((tr(K_L)+sqrt(tr(K_L)^2-4*det(K_L)))/2)
+end
+
+function draw_vector_field(p,I_a_start,I_a_end,I_a_N,I_b_start,I_b_end,I_b_N)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+    γ_aa = γ_a(strategy)
+    γ_bb = γ_b(strategy)
+
+    I_a_vec = ones(I_a_N*I_b_N)
+    I_b_vec = ones(I_a_N*I_b_N)
+    dI_a_vec = ones(I_a_N*I_b_N)
+    dI_b_vec = ones(I_a_N*I_b_N)
+
+    for (i,I_a) in enumerate(range(I_a_start,stop=I_a_end,length=I_a_N))
+        for (j,I_b) in enumerate(range(I_b_start,stop=I_b_end,length=I_b_N))
+            idx = (i-1)*I_b_N+j
+
+            I_a_vec[idx] = I_a
+            I_b_vec[idx] = I_b
+
+            S_a = N_a-I_a
+            S_b = N_b-I_b
+
+            temp_a = S_a*γ_aa*(I_a*K_aa/N_a+I_b*K_ab/N_b)
+            temp_b = S_b*γ_bb*(I_a*K_ab/N_a+I_b*K_bb/N_b)
+                
+            dI_a = temp_a-c*I_a
+            dI_b = temp_b-c*I_b
+
+            dI_a_vec[idx] = dI_a
+            dI_b_vec[idx] = dI_b
+        end
+    end
+
+    quiver(I_a_vec,I_b_vec,quiver=(dI_a_vec,dI_b_vec))
 end
 
 function calc_R0_m(p,S_a_eq,S_b_eq,strategy_m)
