@@ -4,6 +4,34 @@ normal_d(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))/sqrt(2*π*σ²)
 γ_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))
 γ_fun_prim(x,μ,σ²,amplitude) = -(x-μ)/(σ²*2)*amplitude*exp(-(x-μ)^2/(σ²*2))
 
+function system_matrix(p,S)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+    S_a,S_b = S[1],S[2]
+    γ_aa = γ_a(strategy)
+    γ_bb = γ_b(strategy)
+    r = [S_a*γ_aa*K_aa/N_a-c S_a*γ_aa*K_ab/N_b;S_b*γ_bb*K_ab/N_a S_b*γ_bb*K_bb/N_b-c]
+    return r
+end
+function system_matrix(p,mutant_strain,S_eq)
+    c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
+    S_a,S_b = S_eq[1],S_eq[2]
+    γ_aa = γ_a(mutant_strain)
+    γ_bb = γ_b(mutant_strain)
+    r = [S_a*γ_aa*K_aa/N_a-c S_a*γ_aa*K_ab/N_b;S_b*γ_bb*K_ab/N_a S_b*γ_bb*K_bb/N_b-c]
+    return r
+end
+
+function check_system_matrix(p,S)
+    r = system_matrix(p,S)
+    eigs = eigvals(r)
+    return any(real.(eigs).>0)
+end
+function check_system_matrix(p,mutant_strain,S_eq)
+    r = system_matrix(p,mutant_strain,S_eq)
+    eigs = eigvals(r)
+    return any(real.(eigs).>0)
+end
+
 function epievodyn_simple_one_strain!(du,u,p,t)
     c,γ_a,γ_b,strategy,K_aa,K_bb,K_ab,N_a,N_b = p
 
