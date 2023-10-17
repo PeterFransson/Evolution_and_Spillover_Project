@@ -50,12 +50,16 @@ function system_matrix(S_a,S_b,τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     R = [S_a*τ_a*c_aa/N_a-γ_a S_a*τ_a*c_ab/N_b;S_b*τ_b*c_ab/N_a S_b*τ_b*c_bb/N_b-γ_b]
     return R
 end
-
-#Check satablility of system matrix of the two-species-one-pathogen system 
-function check_system_matrix(p,S)
+function system_matrix(p,S)
     τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b = p
     S_a,S_b = S[1],S[2]
     R = system_matrix(S_a,S_b,τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+    return R
+end
+
+#Check satablility of system matrix of the two-species-one-pathogen system 
+function check_system_matrix(p,S)    
+    system_matrix(p,S)
     eigs = eigvals(R)
     return any(real.(eigs).>0)
 end

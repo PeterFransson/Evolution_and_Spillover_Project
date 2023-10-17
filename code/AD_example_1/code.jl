@@ -294,4 +294,25 @@ function run()
     
 end
 
+function create_coex_region(pip::Matrix{T}) where{T}
+    n_row,n_col = size(pip)
+    n_row==n_col||error("n_row!=n_col")
+    coex_region = zeros(T,n_row,n_col)
+    for row in 1:n_row
+        for col in 1:n_col 
+            r_1 = pip[row,col]
+            r_2 = pip[col,row]
+            if r_1≈0.5
+                coex_region[row,col] = 0.5
+            else
+                if r_1≈1.0&&r_2≈1.0
+                    coex_region[row,col]=1
+                else
+                    coex_region[row,col]=0
+                end
+            end
+        end
+    end
+    return coex_region
+end
 #run()

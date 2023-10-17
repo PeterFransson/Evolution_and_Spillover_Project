@@ -17,4 +17,5 @@ using DataFrames, CSV
 #include("./code/AD_example_1/PIP_code_alt.jl")
 #include("./code/AD_example_1/within_host_PIP_code.jl")
 include("code/AD_2_Species/code.jl")
-include("code/AD_2_Species/draw_PIP.jl")
+#include("code/AD_2_Species/draw_PIP.jl")
+include("code/AD_2_Species/analysis.jl")
