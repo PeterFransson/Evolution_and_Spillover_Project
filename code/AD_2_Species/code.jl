@@ -42,19 +42,20 @@ end
 
 normal_d(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))/sqrt(2*π*σ²)
 τ_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))
-τ_prim_fun(x,μ,σ²,amplitude) = -amplitude*exp(-(x-μ)^2/(σ²*2))*2*(x-μ)/(σ²*2)
+τ_prime_fun(x,μ,σ²,amplitude) = -amplitude*exp(-(x-μ)^2/(σ²*2))*2*(x-μ)/(σ²*2)
+τ_d_prime_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))*4*(x-μ)^2/(σ²*2)^2-amplitude*exp(-(x-μ)^2/(σ²*2))*2/(σ²*2)
 
 #Calculate Selection gradients
-function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prim_a,τ_prim_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     r_11 = S_a*τ_a*c_aa/N_a-γ_a
     r_12 = S_a*τ_a*c_ab/N_b
     r_21 = S_b*τ_b*c_ab/N_a
     r_22 = S_b*τ_b*c_bb/N_b-γ_b
 
-    dr_11 = S_a*τ_prim_a*c_aa/N_a
-    dr_12 = S_a*τ_prim_a*c_ab/N_b
-    dr_21 = S_b*τ_prim_b*c_ab/N_a
-    dr_22 = S_b*τ_prim_b*c_bb/N_b
+    dr_11 = S_a*τ_prime_a*c_aa/N_a
+    dr_12 = S_a*τ_prime_a*c_ab/N_b
+    dr_21 = S_b*τ_prime_b*c_ab/N_a
+    dr_22 = S_b*τ_prime_b*c_bb/N_b
 
     R = [r_11 r_12;r_21 r_22]
     dR = [dr_11 dr_12;dr_21 dr_22]
@@ -72,13 +73,49 @@ function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prim_a,τ_prim_b,c_aa,c_bb,c
     dtr_R = dr_11+dr_12
     ddet_R = dr_11*r_22+r_11*dr_22-dr_12*r_21-r_12*dr_21
 
-    dλ_max = (dtr_R+(2*tr_R*dtr_R-4*ddet_R)/(2*sqrt(tr_R^2-4*det_R )))/2
+    dλ_max = (dtr_R+(tr_R*dtr_R-2*ddet_R)/sqrt(tr_R^2-4*det_R))/2
     return dλ_max
 end
 function calculate_select_grad(p,S)    
-    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prim_a,τ_prim_b = p
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b = p
     S_a,S_b = S[1],S[2]
-    dλ_max = calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prim_a,τ_prim_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+    dλ_max = calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+    return dλ_max
+end
+
+#Calculate second order derivative of invasion fitness
+function calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+    r_11 = S_a*τ_a*c_aa/N_a-γ_a
+    r_12 = S_a*τ_a*c_ab/N_b
+    r_21 = S_b*τ_b*c_ab/N_a
+    r_22 = S_b*τ_b*c_bb/N_b-γ_b
+
+    dr_11 = S_a*τ_prime_a*c_aa/N_a
+    dr_12 = S_a*τ_prime_a*c_ab/N_b
+    dr_21 = S_b*τ_prime_b*c_ab/N_a
+    dr_22 = S_b*τ_prime_b*c_bb/N_b
+
+    ddr_11 = S_a*τ_d_prime_a*c_aa/N_a
+    ddr_12 = S_a*τ_d_prime_a*c_ab/N_b
+    ddr_21 = S_b*τ_d_prime_b*c_ab/N_a
+    ddr_22 = S_b*τ_d_prime_b*c_bb/N_b
+
+    tr_R = r_11+r_22
+    det_R =  r_11*r_22-r_12*r_21
+
+    dtr_R = dr_11+dr_12
+    ddet_R = dr_11*r_22+r_11*dr_22-dr_12*r_21-r_12*dr_21
+
+    ddtr_R = ddr_11+ddr_12
+    dddet_R = ddr_11*r_22+r_11*ddr_22+2*dr_11*dr_22-ddr_12*r_21-r_12*ddr_21-2*dr_12*dr_21
+
+    dλ_max = (ddtr_R+(tr_R*ddtr_R+dtr_R^2-2*dddet_R)/sqrt(tr_R^2-4*det_R)-(tr_R*dtr_R-2*ddet_R)^2/(tr_R^2-4*det_R)^(3/2))/2
+    return dλ_max
+end
+function calculate_sec_inv_fit(p,S)    
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p
+    S_a,S_b = S[1],S[2]
+    dλ_max = calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     return dλ_max
 end
 
@@ -262,7 +299,7 @@ end
 
 function create_TEP(p_in,option,coex_region::Matrix{T};ϵ::Real=1e-6) where{T}
     z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain = option
-    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b,τ_prim_a,τ_prim_b = p_in
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p_in
     
     strategies = range(z_start,stop=z_end,length=Nₚ)
 
@@ -283,16 +320,30 @@ function create_TEP(p_in,option,coex_region::Matrix{T};ϵ::Real=1e-6) where{T}
                 p_system = τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,r_1,r_2
                 eq = find_eq_2_strain(u₀_2_strain,tspan,p_system)
 
-                p_grad_1 = τ_a(r_1),τ_b(r_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prim_a(r_1),τ_prim_b(r_1)
-                p_grad_2 = τ_a(r_2),τ_b(r_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prim_a(r_2),τ_prim_b(r_2)
+                p_grad_1 = τ_a(r_1),τ_b(r_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_1),τ_prime_b(r_1)
+                p_grad_2 = τ_a(r_2),τ_b(r_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_2),τ_prime_b(r_2)
+
+                p_sec_deriv_1 = τ_a(r_1),τ_b(r_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_1),τ_prime_b(r_1),τ_d_prime_a(r_1),τ_d_prime_b(r_1)
+                p_sec_deriv_2 = τ_a(r_2),τ_b(r_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_2),τ_prime_b(r_2),τ_d_prime_a(r_2),τ_d_prime_b(r_2)
 
                 dλ_max_1 = calculate_select_grad(p_grad_1,(eq.S_a,eq.S_b))
                 dλ_max_2 = calculate_select_grad(p_grad_2,(eq.S_a,eq.S_b))
 
-                if abs(dλ_max_1)<ϵ&&abs(dλ_max_2)<ϵ
-                    tep[row,col]=0.2
-                elseif abs(dλ_max_1)<ϵ||abs(dλ_max_2)<ϵ
-                    tep[row,col]=0.7
+                ddλ_max_1 = calculate_sec_inv_fit(p_sec_deriv_1,(eq.S_a,eq.S_b))
+                ddλ_max_2 = calculate_sec_inv_fit(p_sec_deriv_2,(eq.S_a,eq.S_b))
+
+                if abs(dλ_max_1)<ϵ 
+                    if  ddλ_max_1<0 #fitness maximum
+                        tep[row,col]=0.7
+                    else
+                        tep[row,col]=0.3
+                    end
+                elseif abs(dλ_max_2)<ϵ
+                    if  ddλ_max_2<0 #fitness maximum
+                        tep[row,col]=0.7
+                    else
+                        tep[row,col]=0.3
+                    end                   
                 else
                     tep[row,col]=1
                 end
