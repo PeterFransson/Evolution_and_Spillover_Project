@@ -10,7 +10,7 @@ function test()
 
     γ = 0.1 
     σ²,amplitude = 0.0025,0.6
-    μ_a,μ_b = 0.2,0.32    
+    μ_a,μ_b = 0.2,0.35    
     
     N_a = 10^3   
     N_b = 10^3 
@@ -31,9 +31,18 @@ function test()
     t_end = 7000
     tspan = (t_start,t_end)
 
-    u₀ = [S₀_a I_a₀;S₀_b I_b₀]    
+    u₀ = [S₀_a I_a₀;S₀_b I_b₀]  
+    
+    r = 0.3475
 
-    option = z_start,z_end,Nₚ,u₀,tspan      
+    option = z_start,z_end,Nₚ,u₀,tspan     
+    p_sys = τ_a(r),τ_b(r),c_aa,c_bb,c_ab,γ,γ,N_a,N_b
+    eq = find_eq(u₀,tspan,p_sys)
+
+
+    p_grad = τ_a(r),τ_b(r),c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a(r),τ_prime_b(r)
+    S = (eq.S_a,eq.S_b)
+    calculate_select_grad(p_grad,S)
 end
 
 test()

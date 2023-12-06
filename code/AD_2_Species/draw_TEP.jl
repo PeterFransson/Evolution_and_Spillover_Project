@@ -34,8 +34,9 @@ function draw_TEP()
     tspan = (t_start,t_end)
 
     u₀ = [S₀_a I_a₀;S₀_b I_b₀]    
+    u₀_2_strain = [N_a-2 1 1;N_b-2 1 1]  
 
-    option = z_start,z_end,Nₚ,u₀,tspan 
+    #option = z_start,z_end,Nₚ,u₀,tspan 
     
     #=
     z_r = 0.3
@@ -78,21 +79,31 @@ function draw_TEP()
 
     coex_region = create_coex_region(p_in,option)   
     z_vec = range(z_start,stop=z_end,length=Nₚ) 
-    heatmap(z_vec,z_vec,coex_region)
+    heatmap(z_vec,z_vec,coex_region)     
 
-    u₀_2_strain = [N_a-2 1 1;N_b-2 1 1]   
-
+    #=
     option = z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain
     p_in = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,μ_a,μ_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b 
     tep = create_TEP(p_in,option,coex_region;ϵ=1e-2)
+    =#
 
+    option = z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain
+    p_in = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,μ_a,μ_b,τ_prime_a,τ_prime_b
+
+    #Check cone of invasions  
+    @show calc_invasion_cone(0.174,0.348,p_in,option)          
+    @show calc_invasion_cone(0.178,0.286,p_in,option)   
+    @show calc_invasion_cone(0.229,0.340,p_in,option)    
+    @show calc_invasion_cone(0.228,0.289,p_in,option)    
+    #=
     heatmap(z_vec,z_vec,tep) 
     plot!([z_start,z_end],[z_start,z_end],c=:green)
     plot!([μ_a,μ_a],[z_start,z_end],c=:red)
     plot!([z_start,z_end],[μ_a,μ_a],c=:red)
     plot!([z_start,z_end],[μ_b,μ_b],c=:blue)
     plot!([μ_b,μ_b],[z_start,z_end],legend=false,c=:blue)
-    savefig("./fig/AD_2_Species/TEP/TEP.svg")   
+    savefig("./fig/AD_2_Species/TEP/TEP.svg")  
+    =# 
 end
 
 draw_TEP()

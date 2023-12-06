@@ -1,6 +1,6 @@
 function plot_list()
-    folder_name = "./fig/PIP/2_species/pop_test"
-    name = "test_3"
+    folder_name = "./fig/PIP/2_species/esp_Test"
+    name = "esp"
     isdir(folder_name)|| mkdir(folder_name)
 
     Nₚ = 1000

@@ -109,14 +109,14 @@ function calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prim
     ddtr_R = ddr_11+ddr_12
     dddet_R = ddr_11*r_22+r_11*ddr_22+2*dr_11*dr_22-ddr_12*r_21-r_12*ddr_21-2*dr_12*dr_21
 
-    dλ_max = (ddtr_R+(tr_R*ddtr_R+dtr_R^2-2*dddet_R)/sqrt(tr_R^2-4*det_R)-(tr_R*dtr_R-2*ddet_R)^2/(tr_R^2-4*det_R)^(3/2))/2
-    return dλ_max
+    ddλ_max = (ddtr_R+(tr_R*ddtr_R+dtr_R^2-2*dddet_R)/sqrt(tr_R^2-4*det_R)-(tr_R*dtr_R-2*ddet_R)^2/(tr_R^2-4*det_R)^(3/2))/2
+    return ddλ_max
 end
 function calculate_sec_inv_fit(p,S)    
     τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p
     S_a,S_b = S[1],S[2]
-    dλ_max = calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
-    return dλ_max
+    ddλ_max = calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+    return ddλ_max
 end
 
 #Matrix (R) describing the dynamics of the two-species-one-pathogen system 
@@ -261,6 +261,11 @@ function draw_PIP(fig_name,strategies,r_m_mat,z_start,z_end,z_a,z_b)
     return nothing
 end
 function draw_PIP(fig_name,p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b = p_in
+
+    strategies = range(z_start,stop=z_end,length=Nₚ)
+    
     r_m_mat,r_m_mat_alt = create_PIP(p_in,option)
 
     draw_PIP(fig_name*".svg",strategies,r_m_mat,z_start,z_end,z_a,z_b)
@@ -352,4 +357,20 @@ function create_TEP(p_in,option,coex_region::Matrix{T};ϵ::Real=1e-6) where{T}
     end
 
     return tep
+end
+
+function calc_invasion_cone(r_1,r_2,p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain = option
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b,τ_prime_a,τ_prime_b = p_in
+
+    p_system = τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,r_1,r_2    
+    eq = find_eq_2_strain(u₀_2_strain,tspan,p_system)
+   
+    p_grad_r1 = τ_a(r_1),τ_b(r_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_1),τ_prime_b(r_1)
+    dλ_max_r1 =  calculate_select_grad(p_grad_r1,(eq.S_a,eq.S_b))    
+    
+    p_grad_r2 = τ_a(r_2),τ_b(r_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_2),τ_prime_b(r_2)
+    dλ_max_r2 =  calculate_select_grad(p_grad_r2,(eq.S_a,eq.S_b)) 
+    
+    return (dλ_max_r1,dλ_max_r2)
 end
