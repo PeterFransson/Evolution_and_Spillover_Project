@@ -57,15 +57,15 @@ function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb
     dr_21 = S_b*τ_prime_b*c_ab/N_a
     dr_22 = S_b*τ_prime_b*c_bb/N_b
 
-    R = [r_11 r_12;r_21 r_22]
-    dR = [dr_11 dr_12;dr_21 dr_22]
+    #R = [r_11 r_12;r_21 r_22]
+    #dR = [dr_11 dr_12;dr_21 dr_22]
 
-    R_e_val,R_e_vec_R = eigen(R)
-    R_e_val,R_e_vec_L = eigen(transpose(R))
+    #R_e_val,R_e_vec_R = eigen(R)
+    #R_e_val,R_e_vec_L = eigen(transpose(R))
 
-    R_e_vec_L_T = transpose(R_e_vec_L[:,2])
+    #R_e_vec_L_T = transpose(R_e_vec_L[:,2])
 
-    dλ_max_alt = R_e_vec_L_T*dR*R_e_vec_R[:,2]/(R_e_vec_L_T*R_e_vec_R[:,2])
+    #dλ_max_alt = R_e_vec_L_T*dR*R_e_vec_R[:,2]/(R_e_vec_L_T*R_e_vec_R[:,2])
 
     tr_R = r_11+r_22
     det_R =  r_11*r_22-r_12*r_21
