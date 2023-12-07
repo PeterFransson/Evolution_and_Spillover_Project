@@ -256,7 +256,7 @@ function draw_PIP(fig_name,strategies,r_m_mat,z_start,z_end,z_a,z_b)
     heatmap(strategies,strategies,r_m_mat)
     plot!([z_start,z_end],[z_start,z_end],c=:green)
     plot!([z_a,z_a],[z_start,z_end],c=:red)
-    plot!([z_b,z_b],[z_start,z_end],legend=false,c=:blue)
+    plot!([z_b,z_b],[z_start,z_end],xlims=[z_start,z_end],legend=false,c=:blue)
     savefig(fig_name) 
     return nothing
 end

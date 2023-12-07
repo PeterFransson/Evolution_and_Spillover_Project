@@ -2,6 +2,7 @@ using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
 using LinearAlgebra, NLsolve
 using DataFrames, CSV
 
+include("code/auxiliary_funs/bisection.jl")
 #include("code/example_1/ex1.jl")
 #include("code/Trait_Plot/Trait_Plot.jl")
 #include("code/example_2/ex2.jl")
