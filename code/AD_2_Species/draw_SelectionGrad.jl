@@ -1,4 +1,4 @@
-function calc_selectgrad(strain,p_in,option)
+function calc_selectgrad(strain::Real,p_in,option)
     u₀,tspan = option
     τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b = p_in
 
@@ -11,7 +11,7 @@ function calc_selectgrad(strain,p_in,option)
 
     return dλ_max
 end
-function calc_d_selectgrad(strain,p_in,option)
+function calc_d_selectgrad(strain::Real,p_in,option)
     u₀,tspan = option    
     τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p_in
 
@@ -44,13 +44,52 @@ function calc_selectgrad(p_in,option)
         select_grad[i] = dλ_max
     end
 
-    return (select_grad,strategies)
+    return (select_grad,collect(strategies))
+end
+
+function find_bracketing_interval(yvals::Vector{R},xvals::Vector{T}) where {R<:Real,T<:Real}
+    N = length(yvals)
+    y_signs = yvals.<0.0    
+    if sum(y_signs)==0||sum(y_signs)==N
+        println("No sign change detected in the given intervall")
+        return nothing        
+    else
+        bracketing = Tuple{Real,Real}[]
+        left_sign = y_signs[1]
+        left_val = xvals[1]
+        for i = 2:N 
+            right_sign = y_signs[i]
+            if right_sign!=left_sign
+                right_val = xvals[i]
+                push!(bracketing,(left_val,right_val)) 
+
+                left_sign = right_sign
+                left_val = right_val
+            end
+        end
+        return bracketing
+    end
+end
+    
+function find_singular_strategies(p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    option_bisec = u₀,tspan
+    Nₚ>2||error("Nₚ≤2")
+    select_grad,strategies = calc_selectgrad(p_in,option)
+    b_vals = find_bracketing_interval(select_grad,strategies)
+    isnothing(b_vals)==false||error("No sign change detected in the given intervall")
+    z_0s = zeros(length(b_vals))
+    for (i,val) in enumerate(b_vals)
+        option_bisec = u₀,tspan
+        z_0s[i] = bisection(x->calc_selectgrad(x,p_in,option_bisec), val[1],val[2])        
+    end
+    return z_0s
 end
 
 function plot_def()
-    Nₚ = 1000
+    Nₚ = 1500
     z_start = 0.18
-    z_end = 0.36
+    z_end = 0.33
 
     #Parameters
     c_aa = 0.425
@@ -59,7 +98,7 @@ function plot_def()
 
     γ = 0.1 
     σ²,amplitude = 0.0025,0.6
-    μ_a,μ_b = 0.2,0.35
+    μ_a,μ_b = 0.2,0.323
     
     N_a = 10^3   
     N_b = 10^3 
@@ -96,8 +135,14 @@ function plot_def()
     p_d_selectgrad = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b
     @show ddλ_max_0 = calc_d_selectgrad(z_0,p_d_selectgrad,option_bisec)
 
-    plot([z_start,z_end],[0,0])#,ylim=[-0.2,0.2])
+    z0s = find_singular_strategies(p_in,option)
+    @show z0s
+    ddλ_max_0s = calc_d_selectgrad.(z0s,Ref(p_d_selectgrad),Ref(option_bisec))
+    @show ddλ_max_0s
+
+    plot([z_start,z_end],[0,0],ylim=[-0.1,0.1])
     plot!(strategies,select_grad,ylabel="Sᵣ(m=r)′",xlabel="Strain",legends=false)
+    savefig("./fig/PIP/2_species/between_case_b_c/singular_strategies.svg")
 end
 
 plot_def()
