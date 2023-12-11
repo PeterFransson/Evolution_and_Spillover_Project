@@ -1,7 +1,7 @@
 function draw_TEP()
-    Nₚ = 1000
+    Nₚ = 1500
     z_start = 0.1
-    z_end = 0.4
+    z_end = 0.35
 
     #Parameters
     c_aa = 0.425
@@ -10,7 +10,7 @@ function draw_TEP()
 
     γ = 0.1 
     σ²,amplitude = 0.0025,0.6
-    μ_a,μ_b = 0.2,0.32    
+    μ_a,μ_b = 0.2,0.323    
     
     N_a = 10^3   
     N_b = 10^3 
@@ -81,12 +81,11 @@ function draw_TEP()
     z_vec = range(z_start,stop=z_end,length=Nₚ) 
     heatmap(z_vec,z_vec,coex_region)     
 
-    #=
+    
     option = z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain
     p_in = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,μ_a,μ_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b 
     tep = create_TEP(p_in,option,coex_region;ϵ=1e-2)
-    =#
-
+    
     option = z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain
     p_in = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,μ_a,μ_b,τ_prime_a,τ_prime_b
 
@@ -95,15 +94,15 @@ function draw_TEP()
     @show calc_invasion_cone(0.178,0.286,p_in,option)   
     @show calc_invasion_cone(0.229,0.340,p_in,option)    
     @show calc_invasion_cone(0.228,0.289,p_in,option)    
-    #=
+    
     heatmap(z_vec,z_vec,tep) 
     plot!([z_start,z_end],[z_start,z_end],c=:green)
     plot!([μ_a,μ_a],[z_start,z_end],c=:red)
     plot!([z_start,z_end],[μ_a,μ_a],c=:red)
     plot!([z_start,z_end],[μ_b,μ_b],c=:blue)
     plot!([μ_b,μ_b],[z_start,z_end],legend=false,c=:blue)
-    savefig("./fig/AD_2_Species/TEP/TEP.svg")  
-    =# 
+    savefig("./fig/TEP/2_species/between_case_b_c/TEP.svg")  
+     
 end
 
 draw_TEP()

@@ -1,3 +1,9 @@
+struct SingularStrat
+    strategy::Real #Position in compability space of evolutionarily singular strategy
+    conv_stable::Bool #Is the strategy convergence stable strategy
+    evo_stable::Bool #Is the strategy evolutionarily stable strategy
+end
+
 function calc_selectgrad(strain::Real,p_in,option)
     u₀,tspan = option
     τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b = p_in
@@ -23,6 +29,14 @@ function calc_d_selectgrad(strain::Real,p_in,option)
     ddλ_max = calculate_sec_inv_fit(p_curv,S)
 
     return ddλ_max
+end
+
+function check_convergence(strain::Real,p_in,option;h::Real=10^-3) where {R<:Real,T<:Real}
+    
+    dλ_max_1 = calc_selectgrad(strain+h,p_in,option)
+    dλ_max_2 = calc_selectgrad(strain-h,p_in,option)
+
+    return (dλ_max_1-dλ_max_2)/(2*h)
 end
 
 function calc_selectgrad(p_in,option)
@@ -72,24 +86,46 @@ function find_bracketing_interval(yvals::Vector{R},xvals::Vector{T}) where {R<:R
 end
     
 function find_singular_strategies(p_in,option)
-    z_start,z_end,Nₚ,u₀,tspan = option
+    z_start,z_end,Nₚ,u₀,tspan = option    
     option_bisec = u₀,tspan
     Nₚ>2||error("Nₚ≤2")
-    select_grad,strategies = calc_selectgrad(p_in,option)
+    select_grad,strategies = calc_selectgrad(p_in,option)    
     b_vals = find_bracketing_interval(select_grad,strategies)
     isnothing(b_vals)==false||error("No sign change detected in the given intervall")
-    z_0s = zeros(length(b_vals))
-    for (i,val) in enumerate(b_vals)
-        option_bisec = u₀,tspan
-        z_0s[i] = bisection(x->calc_selectgrad(x,p_in,option_bisec), val[1],val[2])        
+    z_0s = zeros(length(b_vals))    
+    for (i,val) in enumerate(b_vals)        
+        z_0s[i] = bisection(x->calc_selectgrad(x,p_in,option_bisec), val[1],val[2])             
     end
     return z_0s
+end
+
+function singular_strategies(p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p_in
+
+    p = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b
+    option_in = u₀,tspan
+
+    Δz = (z_end-z_start)/(Nₚ-1)
+
+    z0s = find_singular_strategies(p,option)     
+
+    sing_strats = SingularStrat[]
+
+    for z0 in z0s         
+        conv_check = check_convergence(z0,p,option_in;h=Δz)    
+        evo_check = calc_d_selectgrad(z0,p_in,option_in)
+        push!(sing_strats,SingularStrat(z0,conv_check<0,evo_check<0))
+    end
+
+    return sing_strats
 end
 
 function plot_def()
     Nₚ = 1500
     z_start = 0.18
     z_end = 0.33
+    Δz = (z_end-z_start)/(Nₚ-1)
 
     #Parameters
     c_aa = 0.425
@@ -125,24 +161,27 @@ function plot_def()
 
     option = z_start,z_end,Nₚ,u₀,tspan
     p_in = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b
+    p_strats = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b
 
     select_grad,strategies = calc_selectgrad(p_in,option)
 
-    option_bisec = u₀,tspan
-    z_0 = bisection(x->calc_selectgrad(x,p_in,option_bisec), z_start,z_end)
-    @show z_0
-    @show calc_selectgrad(z_0,p_in,option_bisec)
-    p_d_selectgrad = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b
-    @show ddλ_max_0 = calc_d_selectgrad(z_0,p_d_selectgrad,option_bisec)
+    strats = singular_strategies(p_strats,option)
+    @show strats 
 
+    #=
+    option_bisec = u₀,tspan
+    
     z0s = find_singular_strategies(p_in,option)
     @show z0s
+    conv_vecs = check_convergence.(z0s,Ref(p_in),Ref(option_bisec);h=Δz)
+    @show conv_vecs
     ddλ_max_0s = calc_d_selectgrad.(z0s,Ref(p_d_selectgrad),Ref(option_bisec))
     @show ddλ_max_0s
+    =#
 
     plot([z_start,z_end],[0,0],ylim=[-0.1,0.1])
     plot!(strategies,select_grad,ylabel="Sᵣ(m=r)′",xlabel="Strain",legends=false)
-    savefig("./fig/PIP/2_species/between_case_b_c/singular_strategies.svg")
+    #savefig("./fig/PIP/2_species/between_case_b_c/singular_strategies.svg")
 end
 
 plot_def()
