@@ -1,7 +1,11 @@
 function draw_TEP()
+    folder_name = "./fig/AD_2_Species/TEP/between_case_b_c_2"
+    name = "between_case_b_c_2"
+    isdir(folder_name)|| mkdir(folder_name)
+
     Nₚ = 1500
     z_start = 0.1
-    z_end = 0.35
+    z_end = 0.34
 
     #Parameters
     c_aa = 0.425
@@ -10,7 +14,7 @@ function draw_TEP()
 
     γ = 0.1 
     σ²,amplitude = 0.0025,0.6
-    μ_a,μ_b = 0.2,0.323    
+    μ_a,μ_b = 0.2,0.324    
     
     N_a = 10^3   
     N_b = 10^3 
@@ -101,7 +105,8 @@ function draw_TEP()
     plot!([z_start,z_end],[μ_a,μ_a],c=:red)
     plot!([z_start,z_end],[μ_b,μ_b],c=:blue)
     plot!([μ_b,μ_b],[z_start,z_end],legend=false,c=:blue)
-    savefig("./fig/TEP/2_species/between_case_b_c/TEP.svg")  
+    savefig(folder_name*"/"*name*".svg") 
+    #savefig("./fig/TEP/2_species/between_case_b_c/TEP.svg")  
      
 end
 

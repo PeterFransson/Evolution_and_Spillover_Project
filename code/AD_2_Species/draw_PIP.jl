@@ -1,11 +1,11 @@
 function plot_list()
-    folder_name = "./fig/PIP/2_species/between_case_b_c"
-    name = "between_case_b_c"
+    folder_name = "./fig/AD_2_Species/PIP/between_case_b_c_2"
+    name = "between_case_b_c_2"
     isdir(folder_name)|| mkdir(folder_name)
 
     Nₚ = 2000
     z_start = 0.18#0.1
-    z_end = 0.33#0.5
+    z_end = 0.34#0.5
 
     #Parameters
     c_aa = 0.425
@@ -14,7 +14,7 @@ function plot_list()
 
     γ = 0.1 
     σ²,amplitude = 0.0025,0.6
-    μ_a,μ_b = 0.2,0.323#0.35
+    μ_a,μ_b = 0.2,0.324#0.35
     
     N_tot = 2*10^3 
     #r_N = 0.1

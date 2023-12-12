@@ -122,6 +122,10 @@ function singular_strategies(p_in,option)
 end
 
 function plot_def()
+    folder_name = "./fig/AD_2_Species/Conv/between_case_b_c_2"
+    name = "between_case_b_c_2"
+    isdir(folder_name)|| mkdir(folder_name)
+
     Nₚ = 1500
     z_start = 0.18
     z_end = 0.33
@@ -134,7 +138,7 @@ function plot_def()
 
     γ = 0.1 
     σ²,amplitude = 0.0025,0.6
-    μ_a,μ_b = 0.2,0.323
+    μ_a,μ_b = 0.2,0.28
     
     N_a = 10^3   
     N_b = 10^3 
@@ -179,8 +183,9 @@ function plot_def()
     @show ddλ_max_0s
     =#
 
-    plot([z_start,z_end],[0,0],ylim=[-0.1,0.1])
+    plot([z_start,z_end],[0,0])#,ylim=[-1.0,1.0])
     plot!(strategies,select_grad,ylabel="Sᵣ(m=r)′",xlabel="Strain",legends=false)
+    #savefig(folder_name*"/"*name*".svg")
     #savefig("./fig/PIP/2_species/between_case_b_c/singular_strategies.svg")
 end
 
