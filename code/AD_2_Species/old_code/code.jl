@@ -40,19 +40,12 @@ mutable struct EqPoint{T<:Real}
     I_b::T  
 end
 
-#Struct containing information of a singular strategy
-struct SingularStrat
-    strategy::Real #Position in compability space of evolutionarily singular strategy
-    conv_stable::Bool #True if the strategy is convergence stable
-    evo_stable::Bool #True if the strategy is evolutionarily stable
-end
-
 normal_d(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))/sqrt(2*π*σ²)
 τ_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))
-τ_prime_fun(x,μ,σ²,amplitude) = -amplitude*exp(-(x-μ)^2/(σ²*2))*2*(x-μ)/(σ²*2) #derivative of τ_fun
-τ_d_prime_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))*4*(x-μ)^2/(σ²*2)^2-amplitude*exp(-(x-μ)^2/(σ²*2))*2/(σ²*2) #Second order derivative of τ_fun
+τ_prime_fun(x,μ,σ²,amplitude) = -amplitude*exp(-(x-μ)^2/(σ²*2))*2*(x-μ)/(σ²*2)
+τ_d_prime_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))*4*(x-μ)^2/(σ²*2)^2-amplitude*exp(-(x-μ)^2/(σ²*2))*2/(σ²*2)
 
-#Calculate Selection gradients (first order derivative of invasion fitness)
+#Calculate Selection gradients
 function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     r_11 = S_a*τ_a*c_aa/N_a-γ_a
     r_12 = S_a*τ_a*c_ab/N_b
@@ -64,6 +57,16 @@ function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb
     dr_21 = S_b*τ_prime_b*c_ab/N_a
     dr_22 = S_b*τ_prime_b*c_bb/N_b
 
+    #R = [r_11 r_12;r_21 r_22]
+    #dR = [dr_11 dr_12;dr_21 dr_22]
+
+    #R_e_val,R_e_vec_R = eigen(R)
+    #R_e_val,R_e_vec_L = eigen(transpose(R))
+
+    #R_e_vec_L_T = transpose(R_e_vec_L[:,2])
+
+    #dλ_max_alt = R_e_vec_L_T*dR*R_e_vec_R[:,2]/(R_e_vec_L_T*R_e_vec_R[:,2])
+
     tr_R = r_11+r_22
     det_R =  r_11*r_22-r_12*r_21
 
@@ -73,16 +76,9 @@ function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb
     dλ_max = (dtr_R+(tr_R*dtr_R-2*ddet_R)/sqrt(tr_R^2-4*det_R))/2
     return dλ_max
 end
-function calculate_select_grad(strain::Real,S,syspar::SystemParameters)  
-    τ_a = τ_fun(strain,syspar.z_a,syspar.σ²,syspar.τ_max)
-    τ_b = τ_fun(strain,syspar.z_b,syspar.σ²,syspar.τ_max)
-    τ_prime_a = τ_prime_fun(strain,syspar.z_a,syspar.σ²,syspar.τ_max)
-    τ_prime_b = τ_prime_fun(strain,syspar.z_b,syspar.σ²,syspar.τ_max)
-
-    c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b, = syspar.c_aa,syspar.c_bb,syspar.c_ab,syspar.γ_a,syspar.γ_b,syspar.N_a,syspar.N_b
-
-    S_a,S_b = S[1],S[2] #Susceptibles
-
+function calculate_select_grad(p,S)    
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b = p
+    S_a,S_b = S[1],S[2]
     dλ_max = calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     return dλ_max
 end
@@ -116,18 +112,9 @@ function calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prim
     ddλ_max = (ddtr_R+(tr_R*ddtr_R+dtr_R^2-2*dddet_R)/sqrt(tr_R^2-4*det_R)-(tr_R*dtr_R-2*ddet_R)^2/(tr_R^2-4*det_R)^(3/2))/2
     return ddλ_max
 end
-function calculate_sec_inv_fit(strain,S,syspar::SystemParameters)    
-    τ_a = τ_fun(strain,syspar.z_a,syspar.σ²,syspar.τ_max)
-    τ_b = τ_fun(strain,syspar.z_b,syspar.σ²,syspar.τ_max)
-    τ_prime_a = τ_prime_fun(strain,syspar.z_a,syspar.σ²,syspar.τ_max)
-    τ_prime_b = τ_prime_fun(strain,syspar.z_b,syspar.σ²,syspar.τ_max)
-    τ_d_prime_a = τ_d_prime_fun(strain,syspar.z_a,syspar.σ²,syspar.τ_max)
-    τ_d_prime_b = τ_d_prime_fun(strain,syspar.z_b,syspar.σ²,syspar.τ_max)
-
-    c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b, = syspar.c_aa,syspar.c_bb,syspar.c_ab,syspar.γ_a,syspar.γ_b,syspar.N_a,syspar.N_b
-    
+function calculate_sec_inv_fit(p,S)    
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p
     S_a,S_b = S[1],S[2]
-
     ddλ_max = calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     return ddλ_max
 end
@@ -139,34 +126,28 @@ function system_matrix(S_a,S_b,τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     R = [S_a*τ_a*c_aa/N_a-γ_a S_a*τ_a*c_ab/N_b;S_b*τ_b*c_ab/N_a S_b*τ_b*c_bb/N_b-γ_b]
     return R
 end
-function system_matrix(strain,S,syspar::SystemParameters)
-    τ_a = τ_fun(strain,syspar.z_a,syspar.σ²,syspar.τ_max)
-    τ_b = τ_fun(strain,syspar.z_b,syspar.σ²,syspar.τ_max)
-
-    c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b, = syspar.c_aa,syspar.c_bb,syspar.c_ab,syspar.γ_a,syspar.γ_b,syspar.N_a,syspar.N_b
-
+function system_matrix(p,S)
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b = p
     S_a,S_b = S[1],S[2]
-
     R = system_matrix(S_a,S_b,τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     return R
 end
 
-#Check satablility of system matrix of the two-species-one-pathogen system
-#True if system R0>1 for strain
-function check_system_matrix(strain,S,syspar::SystemParameters)    
-    R = system_matrix(strain,S,syspar)
+#Check satablility of system matrix of the two-species-one-pathogen system 
+function check_system_matrix(p,S)    
+    R = system_matrix(p,S)
     eigs = eigvals(R)
     return any(real.(eigs).>0)
 end
 
 #System dynamics for the two-species-one-pathogen system
 function epievodyn_simple_one_strain!(du,u,p,t)
-    strain,syspar = p    
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b = p
 
     S = u[1:2,1]
     I = u[1:2,2]
 
-    R = system_matrix(strain,S,syspar) 
+    R = system_matrix(S[1],S[2],τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b) 
         
     du[1:2,1] = -R*I
     du[1:2,2] = R*I
@@ -187,15 +168,15 @@ function find_eq(u₀,tspan,p)
 end
 
 #System dynamics for the two-species-two-pathogen system
-function epievodyn_simple_2_strain!(du,u,p,t)
-    strain_1,strain_2,syspar = p
+function epievodyn_simple_two_strain!(du,u,p,t)
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,strain_1,strain_2 = p
   
     S = u[1:2,1]
     I_1 = u[1:2,2]
     I_2 = u[1:2,3]
 
-    R_1 = system_matrix(strain_1,S,syspar) 
-    R_2 = system_matrix(strain_2,S,syspar) 
+    R_1 = system_matrix(S[1],S[2],τ_a(strain_1),τ_b(strain_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b) 
+    R_2 = system_matrix(S[1],S[2],τ_a(strain_2),τ_b(strain_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b) 
 
     du[1:2,1] = -R_1*I_1-R_2*I_2
     du[1:2,2] = R_1*I_1
@@ -205,7 +186,7 @@ end
 #Function to find the equilibrium point for the two-species-two-pathogen system
 function find_eq_2_strain(u₀,tspan,p)
     t_end = tspan[2] 
-    prob = ODEProblem(epievodyn_simple_2_strain!,u₀,tspan,p) #Setup the ODE problem
+    prob = ODEProblem(epievodyn_simple_two_strain!,u₀,tspan,p) #Setup the ODE problem
     sol = solve(prob) #Solve the ODE problem, sol contains a continuous approximation to the ODE
 
     S_a_eq,S_b_eq = sol(t_end)[1,1],sol(t_end)[2,1]
@@ -216,8 +197,28 @@ function find_eq_2_strain(u₀,tspan,p)
     return eq_point
 end
 
-function create_PIP(syspar::SystemParameters,option)
-    z_start,z_end,Nₚ,u₀,tspan = option    
+
+#Calcualte the R0 (reproduction number disease free state) for the two-species-one-pathogen system 
+function calc_R0(p)
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b = p
+   
+    K_L = [τ_a*c_aa/γ_a τ_a*c_ab*N_a/(N_b*γ_b);τ_b*c_ab*N_b/(N_a*γ_a) τ_b*c_bb/γ_b]
+
+    return abs((tr(K_L)+sqrt(tr(K_L)^2-4*det(K_L)))/2)
+end
+
+#Calcualte the R0 for a rare mutant pathogen in a environment set by a recident pathogen 
+function calc_R0_m(p,S_a_eq,S_b_eq)
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b = p
+    
+    K_L = [τ_a*c_aa*S_a_eq/(γ_a*N_a) τ_a*c_ab*S_a_eq/(N_b*γ_b);τ_b*c_ab*S_b_eq/(N_a*γ_a) τ_b*c_bb*S_b_eq/(γ_b*N_b)]
+
+    return abs((tr(K_L)+sqrt(tr(K_L)^2-4*det(K_L)))/2)
+end
+ 
+function create_PIP(p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b = p_in
 
     strategies = range(z_start,stop=z_end,length=Nₚ) 
     
@@ -225,14 +226,17 @@ function create_PIP(syspar::SystemParameters,option)
     
     for col_idx in 1:1:Nₚ #Resident strain
         resident_strain = strategies[col_idx]
-               
-        if check_system_matrix(resident_strain,(syspar.N_a,syspar.N_b),syspar) 
-            eq_point = find_eq(u₀,tspan,(resident_strain,syspar))
+
+        p_resident = τ_a(resident_strain),τ_b(resident_strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b
+        R0_resident = calc_R0(p_resident)
+        if R0_resident>1.0
+            eq_point = find_eq(u₀,tspan,p_resident)
             S_a_eq,S_b_eq = eq_point.S_a,eq_point.S_b
             for i in 1:1:Nₚ #Mutant strain strain
                 mutant_strain = strategies[i]  
-                                
-                if check_system_matrix(mutant_strain,(S_a_eq,S_b_eq),syspar)
+                p_mutant = τ_a(mutant_strain),τ_b(mutant_strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b
+                
+                if check_system_matrix(p_mutant,(S_a_eq,S_b_eq))
                     r_m_mat[i,col_idx]=1
                 end
             end
@@ -251,14 +255,16 @@ function draw_PIP(fig_name,strategies,r_m_mat,z_start,z_end,z_a,z_b)
     savefig(fig_name) 
     return nothing
 end
-function draw_PIP(fig_name,syspar::SystemParameters,option)
-    z_start,z_end,Nₚ,u₀,tspan = option    
+function draw_PIP(fig_name,p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b = p_in
 
     strategies = range(z_start,stop=z_end,length=Nₚ)
     
-    r_m_mat = create_PIP(syspar,option)
+    r_m_mat = create_PIP(p_in,option)
 
-    draw_PIP(fig_name*".svg",strategies,r_m_mat,z_start,z_end,syspar.z_a,syspar.z_b)
+    draw_PIP(fig_name*".svg",strategies,r_m_mat,z_start,z_end,z_a,z_b)
+    #draw_PIP(fig_name*"_alt.svg",strategies,r_m_mat_alt,z_start,z_end,z_a,z_b)
     
     return nothing
 end
@@ -285,15 +291,16 @@ function create_coex_region(pip::Matrix{T}) where{T}
     end
     return coex_region
 end
-function create_coex_region(syspar::SystemParameters,option)
-    r_m_mat = create_PIP(syspar,option)
+function create_coex_region(p_in,option)
+    r_m_mat = create_PIP(p_in,option)
     coex_region = create_coex_region(r_m_mat)
     return coex_region
 end
 
-function create_TEP(syspar::SystemParameters,option,coex_region::Matrix{T};ϵ::Real=1e-6) where{T}
+function create_TEP(p_in,option,coex_region::Matrix{T};ϵ::Real=1e-6) where{T}
     z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain = option
-        
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p_in
+    
     strategies = range(z_start,stop=z_end,length=Nₚ)
 
     (n_row,n_col) = size(coex_region)
@@ -309,15 +316,21 @@ function create_TEP(syspar::SystemParameters,option,coex_region::Matrix{T};ϵ::R
                 tep[row,col] = 0
             else
                 r_1 = strategies[row] #Resident strain 1
-                r_2 = strategies[col] #Resident strain 2                
-                p_system = r_1,r_2,syspar
+                r_2 = strategies[col] #Resident strain 2
+                p_system = τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,r_1,r_2
                 eq = find_eq_2_strain(u₀_2_strain,tspan,p_system)
-            
-                dλ_max_1 = calculate_select_grad(r_1,(eq.S_a,eq.S_b),syspar)
-                dλ_max_2 = calculate_select_grad(r_2,(eq.S_a,eq.S_b),syspar)
 
-                ddλ_max_1 = calculate_sec_inv_fit(r_1,(eq.S_a,eq.S_b),syspar)
-                ddλ_max_2 = calculate_sec_inv_fit(r_2,(eq.S_a,eq.S_b),syspar)
+                p_grad_1 = τ_a(r_1),τ_b(r_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_1),τ_prime_b(r_1)
+                p_grad_2 = τ_a(r_2),τ_b(r_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_2),τ_prime_b(r_2)
+
+                p_sec_deriv_1 = τ_a(r_1),τ_b(r_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_1),τ_prime_b(r_1),τ_d_prime_a(r_1),τ_d_prime_b(r_1)
+                p_sec_deriv_2 = τ_a(r_2),τ_b(r_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_2),τ_prime_b(r_2),τ_d_prime_a(r_2),τ_d_prime_b(r_2)
+
+                dλ_max_1 = calculate_select_grad(p_grad_1,(eq.S_a,eq.S_b))
+                dλ_max_2 = calculate_select_grad(p_grad_2,(eq.S_a,eq.S_b))
+
+                ddλ_max_1 = calculate_sec_inv_fit(p_sec_deriv_1,(eq.S_a,eq.S_b))
+                ddλ_max_2 = calculate_sec_inv_fit(p_sec_deriv_2,(eq.S_a,eq.S_b))
 
                 if abs(dλ_max_1)<ϵ 
                     if  ddλ_max_1<0 #fitness maximum
@@ -341,113 +354,142 @@ function create_TEP(syspar::SystemParameters,option,coex_region::Matrix{T};ϵ::R
     return tep
 end
 
-function calc_invasion_cone(r_1,r_2,syspar::SystemParameters,option)
+function calc_invasion_cone(r_1,r_2,p_in,option)
     z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain = option
-    
-    p_system = r_1,r_2,syspar   
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,z_a,z_b,τ_prime_a,τ_prime_b = p_in
+
+    p_system = τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,r_1,r_2    
     eq = find_eq_2_strain(u₀_2_strain,tspan,p_system)
-       
-    dλ_max_r1 = calculate_select_grad(r_1,(eq.S_a,eq.S_b),syspar)  
-    dλ_max_r2 = calculate_select_grad(r_2,(eq.S_a,eq.S_b),syspar) 
+   
+    p_grad_r1 = τ_a(r_1),τ_b(r_1),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_1),τ_prime_b(r_1)
+    dλ_max_r1 =  calculate_select_grad(p_grad_r1,(eq.S_a,eq.S_b))    
+    
+    p_grad_r2 = τ_a(r_2),τ_b(r_2),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(r_2),τ_prime_b(r_2)
+    dλ_max_r2 =  calculate_select_grad(p_grad_r2,(eq.S_a,eq.S_b)) 
     
     return (dλ_max_r1,dλ_max_r2)
 end
 
-#Find equilibrium point and calculate selection gradiant at this point
-function find_selectgrad(strain::Real,syspar::SystemParameters,option)
+#Struct containing information of a singular strategy
+struct SingularStrat
+    strategy::Real #Position in compability space of evolutionarily singular strategy
+    conv_stable::Bool #True if the strategy is convergence stable
+    evo_stable::Bool #True if the strategy is evolutionarily stable
+end
+
+function calc_selectgrad(strain::Real,p_in,option)
     u₀,tspan = option
-    p = strain,syspar 
-    
-    eq_point = find_eq(u₀,tspan,p)
-    
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b = p_in
+
+    p_eq = τ_a(strain),τ_b(strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b 
+    eq_point = find_eq(u₀,tspan,p_eq)
+
+    p_grad = τ_a(strain),τ_b(strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(strain),τ_prime_b(strain)
     S = (eq_point.S_a,eq_point.S_b)
-    dλ_max = calculate_select_grad(strain,S,syspar)
+    dλ_max = calculate_select_grad(p_grad,S)
 
     return dλ_max
 end
+function calc_d_selectgrad(strain::Real,p_in,option)
+    u₀,tspan = option    
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p_in
 
-#Find equilibrium point and calculate second order derivative of invasion fitness at this point
-function find_sec_inv_fit(strain::Real,syspar::SystemParameters,option)
-    u₀,tspan = option
-    p = strain,syspar 
-    
-    eq_point = find_eq(u₀,tspan,p)
-    
+    p_eq = τ_a(strain),τ_b(strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b 
+    eq_point = find_eq(u₀,tspan,p_eq)
+
+    p_curv = τ_a(strain),τ_b(strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(strain),τ_prime_b(strain),τ_d_prime_a(strain),τ_d_prime_b(strain)
     S = (eq_point.S_a,eq_point.S_b)
-    
-    ddλ_max = calculate_sec_inv_fit(strain, S, syspar)
+    ddλ_max = calculate_sec_inv_fit(p_curv,S)
 
     return ddλ_max
 end
 
-#Check if singular strategy strain is convergence stable
-function check_convergence(strain::Real,syspar::SystemParameters,option;h::Real=10^-3)
+function check_convergence(strain::Real,p_in,option;h::Real=10^-3)
     
-    dλ_max_1 = find_selectgrad(strain+h,syspar,option)
-    dλ_max_2 = find_selectgrad(strain-h,syspar,option)
+    dλ_max_1 = calc_selectgrad(strain+h,p_in,option)
+    dλ_max_2 = calc_selectgrad(strain-h,p_in,option)
 
-    return (dλ_max_1-dλ_max_2)/(2*h)<0
+    return (dλ_max_1-dλ_max_2)/(2*h)
 end
 
-#Find bracketing intervals (sign change intervals) in the range  defined [xstart,xend]
-function find_bracketing_interval(fun::Function,xstart::Real,xend::Real,length::Integer)
-    xend>xstart||error("xend≤xstart")
-    length>=2||error("length≤2")
+function calc_selectgrad(p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a,τ_prime_b = p_in
 
-    Δx = (xend-xstart)/(length-1)             
-    
-    bracketing = Tuple{Real,Real}[]
-    left_val = xstart
-    left_sign = fun(left_val)<0  
+    strategies = range(z_start,stop=z_end,length=Nₚ) 
+    select_grad = zeros(Nₚ)
 
-    for i = 1:length-1 
-        right_val = xstart+Δx*i
-        right_sign = fun(right_val)<0
-        if right_sign!=left_sign
-            
-            push!(bracketing,(left_val,right_val)) 
+    for i = 1:Nₚ
+        strain = strategies[i]
+        p_eq = τ_a(strain),τ_b(strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b 
+        eq_point = find_eq(u₀,tspan,p_eq)
 
-            left_sign = right_sign
-            left_val = right_val
-        end
+        p_grad = τ_a(strain),τ_b(strain),c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b,τ_prime_a(strain),τ_prime_b(strain)
+        S = (eq_point.S_a,eq_point.S_b)
+        dλ_max = calculate_select_grad(p_grad,S)
+
+        select_grad[i] = dλ_max
     end
 
-    if isempty(bracketing)
+    return (select_grad,collect(strategies))
+end
+
+#Find bracketing intervals (sign change inter) in the range  defined [yvals,xvals]
+function find_bracketing_interval(yvals::Vector{R},xvals::Vector{T}) where {R<:Real,T<:Real}
+    N = length(yvals)
+    y_signs = yvals.<0.0    
+    if sum(y_signs)==0||sum(y_signs)==N
         println("No sign change detected in the given intervall")
-        return nothing  
+        return nothing        
+    else
+        bracketing = Tuple{Real,Real}[]
+        left_sign = y_signs[1]
+        left_val = xvals[1]
+        for i = 2:N 
+            right_sign = y_signs[i]
+            if right_sign!=left_sign
+                right_val = xvals[i]
+                push!(bracketing,(left_val,right_val)) 
+
+                left_sign = right_sign
+                left_val = right_val
+            end
+        end
+        return bracketing
     end
-
-    return bracketing    
 end
-
-function find_singular_strategies(syspar::SystemParameters,option)
+    
+function find_singular_strategies(p_in,option)
     z_start,z_end,Nₚ,u₀,tspan = option    
-    option_temp = u₀,tspan
-    Nₚ>2||error("Nₚ≤2")      
-    b_vals = find_bracketing_interval(x->find_selectgrad(x,syspar,option_temp),z_start,z_end,Nₚ)
+    option_bisec = u₀,tspan
+    Nₚ>2||error("Nₚ≤2")
+    select_grad,strategies = calc_selectgrad(p_in,option)    
+    b_vals = find_bracketing_interval(select_grad,strategies)
     isnothing(b_vals)==false||error("No sign change detected in the given intervall")
     z_0s = zeros(length(b_vals))    
     for (i,val) in enumerate(b_vals)        
-        z_0s[i] = bisection(x->find_selectgrad(x,syspar,option_temp), val[1],val[2])             
+        z_0s[i] = bisection(x->calc_selectgrad(x,p_in,option_bisec), val[1],val[2])             
     end
     return z_0s
 end
 
-function singular_strategies(syspar::SystemParameters,option)
-    z_start,z_end,Nₚ,u₀,tspan = option 
+function singular_strategies(p_in,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b,τ_d_prime_a,τ_d_prime_b = p_in
 
+    p = τ_a,τ_b,c_aa,c_bb,c_ab,γ,γ,N_a,N_b,τ_prime_a,τ_prime_b
     option_in = u₀,tspan
 
     Δz = (z_end-z_start)/(Nₚ-1)
-      
-    z0s = find_singular_strategies(syspar,option)  
+
+    z0s = find_singular_strategies(p,option)     
 
     sing_strats = SingularStrat[]
 
     for z0 in z0s         
-        conv_check = check_convergence(z0,syspar,option_in;h=Δz)    
-        evo_check = find_sec_inv_fit(z0,syspar,option_in)
-        push!(sing_strats,SingularStrat(z0,conv_check,evo_check<0))
+        conv_check = check_convergence(z0,p,option_in;h=Δz)    
+        evo_check = calc_d_selectgrad(z0,p_in,option_in)
+        push!(sing_strats,SingularStrat(z0,conv_check<0,evo_check<0))
     end
 
     return sing_strats
