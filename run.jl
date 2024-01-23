@@ -1,6 +1,6 @@
 using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
 using LinearAlgebra, NLsolve
-using DataFrames, CSV
+using DataFrames, CSV, JLD2
 
 include("code/auxiliary_funs/bisection.jl")
 #include("code/example_1/ex1.jl")
@@ -21,4 +21,5 @@ include("code/AD_2_Species/code.jl")
 #include("code/AD_2_Species/draw_PIP.jl")
 #include("code/AD_2_Species/analysis.jl")
 #include("code/AD_2_Species/draw_TEP.jl")
-include("code/AD_2_Species/draw_SelectionGrad.jl")
+#include("code/AD_2_Species/draw_SelectionGrad.jl")
+include("code/AD_2_Species/parameter_influence/interspecies_contact/inter_contact.jl")

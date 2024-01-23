@@ -26,3 +26,4 @@ Manifest.toml
 #Ignore all files and subfolders in Plots and Output
 /Manifest.toml
 /fig
+/output
