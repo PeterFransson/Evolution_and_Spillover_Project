@@ -90,17 +90,28 @@ function find_type(strats::Vector{SingularStrat})
     end
 end
 
+type_dict = Dict(:blue =>(1,"Type A"),:green=>(2,"Type B"),:red=>(4,"Type C"),:black=>(3,"Transient Type"))
+
 function draw_plot()
     c_len = JLD2.load("./output/AD_2_Species/parameter_influence/interspecies_contact/c_dz_info.jld2","c_len")
     dz_len = JLD2.load("./output/AD_2_Species/parameter_influence/interspecies_contact/c_dz_info.jld2","dz_len")
+    fig_name = "interspecies_contact"
 
-    plot(xlabel="Z distance",ylabel="Contact",legend=false)
+    type_width = ((Float64[],Float64[],:blue),
+    (Float64[],Float64[],:green),
+    (Float64[],Float64[],:black),
+    (Float64[],Float64[],:red))
+
+    plot(xlabel="Between Species Distance",ylabel="Interspecies Contact")
 
     for i = 1:c_len
         file_name = "output_c_$(i)_dz_$(1)" 
         syspar = JLD2.load("./output/AD_2_Species/parameter_influence/interspecies_contact/"*file_name*".jld2","syspar")
         strats = JLD2.load("./output/AD_2_Species/parameter_influence/interspecies_contact/"*file_name*".jld2","strats")
-        c_ab = syspar.c_ab  
+        c_ab = syspar.c_ab 
+        c_aa = syspar.c_aa
+        c_bb = syspar.c_bb
+        c = c_ab*2/(c_aa+c_bb)
         δz = abs(syspar.z_a-syspar.z_b)
         type_sym = find_type(strats)
         for j = 2:dz_len 
@@ -110,13 +121,31 @@ function draw_plot()
             δz_temp = abs(syspar_temp.z_a-syspar_temp.z_b)
             type_sym_temp = find_type(strats_temp)
             if (type_sym != type_sym_temp)||j==dz_len
-                plot!([δz,δz_temp],[c_ab,c_ab],color=type_sym,markershape=:circle)
+                if i == 1
+                    plot!([δz,δz_temp],[c,c],color=type_sym,markershape=:circle,label=type_dict[type_sym][2])
+                else
+                    plot!([δz,δz_temp],[c,c],color=type_sym,markershape=:circle,label="")
+                end
+
+                push!(type_width[type_dict[type_sym][1]][1],c)
+                push!(type_width[type_dict[type_sym][1]][2],abs(δz-δz_temp))
+                
                 δz = δz_temp    
                 type_sym = type_sym_temp          
             end
         end
     end   
-    plot!() 
+    plot!(legend = false) 
+       
+    savefig("./fig/AD_2_Species/parameter_influence/interspecies_contact/"*fig_name*"_subpl_1.svg")
+
+    plot(xlabel="Interspecies Contact",ylabel="Type Width")
+    for yx in type_width
+        plot!(yx[1],yx[2],color=yx[3],markershape=:circle,label=type_dict[yx[3]][2])
+    end
+    plot!(legend = :outerbottomright)
+    
+    savefig("./fig/AD_2_Species/parameter_influence/interspecies_contact/"*fig_name*"_subpl_2.svg")
 end
 #compute()
 draw_plot()
