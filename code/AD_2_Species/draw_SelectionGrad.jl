@@ -47,7 +47,7 @@ function draw_gif()
         plot([z_start,z_end],[0,0])
         plot!([μ_a,μ_a],0.05*[min_grad,max_grad],color=:blue)
         plot!([μ_b,μ_b],0.05*[min_grad,max_grad],color=:red)
-        plot!(strategies,select_grad,ylabel="Sᵣ(m=r)′",xlabel="Strain",legends=false)
+        plot!(strategies,select_grad,ylabel="Selection gradient Sᵣ(m=r)′",xlabel="r",legends=false)
         for strat in strats 
             if strat.evo_stable
                 scatter!([strat.strategy],[0],mc=:green, ms=5)

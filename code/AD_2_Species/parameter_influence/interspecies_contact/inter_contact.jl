@@ -1,7 +1,7 @@
 #Run computation
 function compute() 
     δz_vec = range(0.05,stop=0.15,length=50)
-    c_vec = [0.6 0.65 0.7 0.75 0.8]
+    c_vec = [0.2 0.3 0.4 0.5 0.6 0.7 0.8] #[0.2 0.3 0.4 0.5 0.6 0.65 0.7 0.75 0.8]
 
     γ = 0.1 
     z_start = 0.18
@@ -147,6 +147,6 @@ function draw_plot()
     
     savefig("./fig/AD_2_Species/parameter_influence/interspecies_contact/"*fig_name*"_subpl_2.svg")
 end
-#compute()
+compute()
 draw_plot()
 #Draw gif
