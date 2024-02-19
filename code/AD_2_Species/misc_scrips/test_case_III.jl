@@ -1,8 +1,4 @@
-function plot_list()
-    folder_name = "./fig/AD_2_Species/PIP/case_III"
-    name = "case_III"
-    isdir(folder_name)|| mkdir(folder_name)
-
+function run_case_III_test()
     Nₚ = 2000
     z_start = 0.18#0.1
     z_end = 0.4#0.5
@@ -37,12 +33,17 @@ function plot_list()
 
     u₀ = [S₀_a I_a₀;S₀_b I_b₀]    
 
-    option = z_start,z_end,Nₚ,u₀,tspan     
-    
-    fig_name = folder_name*"/"*name    
-    draw_PIP(fig_name,syspar,option)    
-    savesystemparameters(syspar,folder_name*"/"*name*"_param")
+    option = z_start,z_end,Nₚ,u₀,tspan    
 
     strats = singular_strategies(syspar,option)
+
+    z = strats[1].strategy
+
+    @show R₀_a = τ_fun(μ_a,z,σ²,amplitude)*c_aa/γ
+    @show R₀_b = τ_fun(μ_b,z,σ²,amplitude)*c_bb/γ
+
+    p = (z,syspar)
+    find_eq(u₀,tspan,p)
 end
-plot_list()
+
+run_case_III_test()
