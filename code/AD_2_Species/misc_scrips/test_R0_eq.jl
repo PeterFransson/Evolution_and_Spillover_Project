@@ -1,3 +1,23 @@
+function R₀_fun(z::Real,syspar::SystemParameters)
+
+    x_a,x_b,c_aa,c_bb,c_ab,N_a,N_b,γ_a,γ_b,σ²,τ_max = syspar.z_a,syspar.z_b,syspar.c_aa,syspar.c_bb,syspar.c_ab,syspar.N_a,syspar.N_b,syspar.γ_a,syspar.γ_b,syspar.σ²,syspar.τ_max
+
+    R₀_a_max = τ_max*c_aa/γ_a
+    R₀_b_max = τ_max*c_bb/γ_b
+    R₀_ab_max = τ_max*c_ab/γ_b
+    R₀_ba_max = τ_max*c_ab/γ_a
+
+    R₀_a = R₀_a_max*τ_fun(x_a,z,σ²) 
+    R₀_b = R₀_b_max*τ_fun(x_b,z,σ²) 
+    R₀_ab = R₀_ab_max*τ_fun(x_a,z,σ²) 
+    R₀_ba = R₀_ba_max*τ_fun(x_b,z,σ²) 
+
+    R₀_mean =  (R₀_a+R₀_b)/2
+    ΔR₀ =  (R₀_a-R₀_b)/2
+
+    return R₀_mean+sqrt(ΔR₀^2+R₀_ab*R₀_ba) 
+end
+
 function test_R0()
     γ = 0.1 
     z_start = 0.18
@@ -8,7 +28,7 @@ function test_R0()
     #Parameters
     c_aa = 0.425
     c_bb = 0.425
-    c_ab = 0.3
+    c_ab = 0.0
         
     N_a = 10^3   
     N_b = 10^3 
@@ -31,6 +51,11 @@ function test_R0()
     @show R₀_a_max = amplitude*c_aa/γ
     @show R₀_b_max = amplitude*c_bb/γ
     @show R₀_ab_max = amplitude*c_ab/γ
+
+    Δz = range(0.0,stop=1.0,length=200)
+    Δx = μ_b-μ_a
+    z = [Δx*Δ+μ_a for Δ in Δz]    
+    plot(Δz,R₀_fun.(z,Ref(syspar)))
 end 
 
 test_R0()
