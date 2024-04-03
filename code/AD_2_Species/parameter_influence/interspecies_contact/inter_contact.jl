@@ -90,7 +90,7 @@ function find_type(strats::Vector{SingularStrat})
     end
 end
 
-type_dict = Dict(:blue =>(1,"Type A"),:green=>(2,"Type B"),:red=>(4,"Type C"),:black=>(3,"Transient Type"))
+type_dict = Dict(:blue =>(1,"Type I"),:green=>(2,"Type II"),:red=>(4,"Type III"),:black=>(3,"Transient Type"))
 
 function draw_plot()
     c_len = JLD2.load("./output/AD_2_Species/parameter_influence/interspecies_contact/c_dz_info.jld2","c_len")
@@ -147,6 +147,6 @@ function draw_plot()
     
     savefig("./fig/AD_2_Species/parameter_influence/interspecies_contact/"*fig_name*"_subpl_2.svg")
 end
-compute()
+#compute()
 draw_plot()
 #Draw gif

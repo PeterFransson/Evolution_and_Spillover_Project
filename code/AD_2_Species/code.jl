@@ -48,7 +48,8 @@ struct SingularStrat
 end
 
 normal_d(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))/sqrt(2*π*σ²)
-τ_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))
+τ_fun(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))
+τ_fun(x,μ,σ²,amplitude) = amplitude*τ_fun(x,μ,σ²)
 τ_prime_fun(x,μ,σ²,amplitude) = -amplitude*exp(-(x-μ)^2/(σ²*2))*2*(x-μ)/(σ²*2) #derivative of τ_fun
 τ_d_prime_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))*4*(x-μ)^2/(σ²*2)^2-amplitude*exp(-(x-μ)^2/(σ²*2))*2/(σ²*2) #Second order derivative of τ_fun
 
