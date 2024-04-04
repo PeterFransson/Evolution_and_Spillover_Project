@@ -28,7 +28,7 @@ function test_R0()
     #Parameters
     c_aa = 0.425
     c_bb = 0.425
-    c_ab = 0.0
+    c_ab = 0.2
         
     N_a = 10^3   
     N_b = 10^3 
@@ -41,7 +41,7 @@ function test_R0()
     S₀_b = N_b-I_b₀     
 
     t_start = 0
-    t_end = 7000
+    t_end = 300
     tspan = (t_start,t_end)
 
     u₀ = [S₀_a I_a₀;S₀_b I_b₀]  
@@ -56,6 +56,23 @@ function test_R0()
     Δx = μ_b-μ_a
     z = [Δx*Δ+μ_a for Δ in Δz]    
     plot(Δz,R₀_fun.(z,Ref(syspar)))
+
+    options = (0.2,syspar)
+    prob = ODEProblem(epievodyn_simple_one_strain!,u₀,tspan,options) #Setup the ODE problem
+    sol = solve(prob) #Solve the ODE problem, sol contains a continuous approximation to the ODE
+    plot(sol)
+
+    @show eq = find_eq(u₀,tspan,options)
+    check_system_matrix(0.2,[eq.S_a,eq.S_b],syspar)  
+
+    probSS = SteadyStateProblem(epievodyn_simple_one_strain!,u₀,options)
+    solss = solve(probSS, DynamicSS(Rodas5(),abstol=1e-7,reltol=1e-5))  
+    @show solss
+    @show u = [solss[1] solss[3];solss[2] solss[4]]
+    du = zeros(2,2)
+    epievodyn_simple_one_strain!(du,u,options,0.0)
+
+    du
 end 
 
 test_R0()
