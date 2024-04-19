@@ -50,7 +50,7 @@ function SIS_Gillespie!(S::Vector{U},
     t,
     p) where {U<:Integer,T<:Integer}
 
-    c,μₘ,σₘ,γ,K,N,c_m,t_end = p #Parameters
+    γ,μₘ,σₘ,τ,K,N,c_m,t_end = p #Parameters
     
         n_pathogen_strains = length(I)        
 
@@ -65,14 +65,14 @@ function SIS_Gillespie!(S::Vector{U},
         strategy_z = I[i].strategy
         for j in 1:n_species #species loop                       
                 
-            rᵣ = I_z[j]*c
+            rᵣ = I_z[j]*γ
             rₘ = I_z[j]*μₘ
-            rᵢ = S[j]*γ[j](strategy_z)*sum(K[j,:].*I_z./N)
+            rᵢ = S[j]*τ[j](strategy_z)*sum(K[j,:].*I_z./N)
 
-            τ = [τ_fun(rᵣ,r_num[i,j,1]),τ_fun(rₘ,r_num[i,j,2]),τ_fun(rᵢ,r_num[i,j,3])]
-            state_temp = argmin(τ)
-            if τ[state_temp]<Δt
-                Δt = τ[state_temp]
+            τ_val = [τ_fun(rᵣ,r_num[i,j,1]),τ_fun(rₘ,r_num[i,j,2]),τ_fun(rᵢ,r_num[i,j,3])]
+            state_temp = argmin(τ_val)
+            if τ_val[state_temp]<Δt
+                Δt = τ_val[state_temp]
                 pathogen_strains = i
                 state = state_temp
                 species = j
@@ -91,10 +91,10 @@ function SIS_Gillespie!(S::Vector{U},
         pathogen_strains_mutant = find_weighted_idx(r_rnd,c_m[pathogen_strains,:]) 
         mutant_strategy = I[pathogen_strains_mutant].strategy
 
-        if γ[species](mutant_strategy)>γ[species](resident_strategy)
+        #if τ[species](mutant_strategy)>τ[species](resident_strategy)
             I[pathogen_strains_mutant].number[species]+=1
             I[pathogen_strains].number[species] -= 1                
-        end
+        #end
         return t+Δt 
     elseif state==3 #infection
         I[pathogen_strains].number[species] += 1
@@ -141,41 +141,33 @@ function run_Gillespie!(S::Vector{T},
     return (S_vec,I_vec,t_vec)
 end
 
-function draw_strain_distribution(t_vec,I_vec,img_name)
+function draw_evolution(t_vec,I_vec,img_name)     
+    n_time = length(t_vec)
+    n_strains = length(I_vec[1])
+    strategy_strain = [strain.strategy for strain in I_vec[1]]
+
+    ev_pl = ones(n_time,n_strains) #evolution plot      
+
+    for t_idx in 1:n_time
+
+        I_strain = [sum(strain.number) for strain in I_vec[t_idx]]
         
-    strain_distribution = @animate for (time,strain_dist) in zip(t_vec,I_vec)      
-        
-        I_strain = [sum(strain.number) for strain in strain_dist]
-        strategy_strain = [strain.strategy for strain in strain_dist]
         I_tot = sum(I_strain)
-        q_strain = I_strain/I_tot
-        
-        plot(strategy_strain,
-        q_strain,
-        seriestype=:scatter,
-        legends=false,
-        xlim=(0,1))        
-    end
-    gif(strain_distribution, "./fig/ex8/"*img_name*".gif", fps = 15)      
-end
 
-function draw_strain_evolution_plot(t_vec,I_vec,t₀,t_end,img_name)
-    plt = plot(ylims=(0.0,1.0),xlims=(t₀,t_end),legends=false)
-    for (time,strain_dist) in zip(t_vec,I_vec)
+        if I_tot>0
+            q_strain = I_strain/I_tot
+            ev_pl[t_idx,:] = 1.0.-q_strain
+        end       
         
-        strategies = []
-        for strain in strain_dist
-            if sum(strain.number)>0
-                push!(strategies,strain.strategy)
-            end
-        end
-
-        if isempty(strategies) == false
-            time_vec = [time for i in strategies]
-            plot!(plt,time_vec,strategies,seriestype=:scatter) 
-        end             
     end    
-    savefig(plt,"./fig/ex8/"*img_name*".svg")
+   
+    plt = heatmap(strategy_strain,
+    t_vec,
+    ev_pl,
+    c=cgrad(:grays),
+    xlabel="Time", ylabel="strategy (Z)")
+
+    savefig(plt,"./fig/AD_2_Species/parameter_influence/model_check/"*img_name*".svg")
 end
 
 function draw_compartments(t_vec,I_vec,S_vec,img_name)    
@@ -195,42 +187,38 @@ function draw_compartments(t_vec,I_vec,S_vec,img_name)
         plot!(plt,t_vec,S_plot_mat[:,species_idx])
         plot!(plt,t_vec,I_plot_mat[:,species_idx])
     end
-    savefig(plt,"./fig/ex8/"*img_name*".svg")
+    savefig(plt,"./fig/AD_2_Species/parameter_influence/model_check/"*img_name*".svg")
 end
 
+
 function run_model()    
-    Nₚ = 100 #Number of strains 
+    Nₚ = 200 #Number of strains 
     z_vec = z_fun.(1:Nₚ,Ref(Nₚ)) #Pathogen strains
 
     #maximum intraspecific basic reproduction number
-    R₀_aa_max = 2.0 
-    R₀_bb_max = 1.5 
+    R₀_aa_max = 2.44
+    R₀_bb_max = 2.44 
 
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
     μ_a = 0.2
-    μ_b = 0.3    
-    c = 0.2 #Intraspecific transmission rate coefficint
+    μ_b = 0.25   
+    c = 0.8 #Intraspecific transmission rate coefficint
 
-    γ_a(z) = γ_fun(z,μ_a,σ²_a,amplitude)
-    γ_b(z) = γ_fun(z,μ_b,σ²_b,amplitude) 
+    τ_a(z) = τ_fun(z,μ_a,σ²,amplitude)
+    τ_b(z) = τ_fun(z,μ_b,σ²,amplitude)    
    
-    #Plot strategy
-    plot(z_vec,γ_a.(z_vec),label="Species A",
-    xlabel="Strategy",ylabel="γ") 
-    plot(z_vec,γ_b.(z_vec),label="Species B")     
-    
     #Parameters
 
     #Maximum intraspecific transmission rate
-    β_aa_max = R₀_aa_max*γ
-    β_bb_max = R₀_bb_max*γ
+    @show β_aa_max = R₀_aa_max*γ
+    @show β_bb_max = R₀_bb_max*γ
 
-    β_ab_max = (β_aa_max+β_bb_max)/2*c
+    @show β_ab_max = (β_aa_max+β_bb_max)/2*c
     
-    μₘ = 0.01 #Mutation rate
+    μₘ = 0.001 #Mutation rate
 
-    @show z_start_idx = floor(Int64,0.2*Nₚ)
+    @show z_start_idx = floor(Int64,μ_a*Nₚ)
     @show z_start = z_fun(z_start_idx,Nₚ) 
 
     #Initial states
@@ -240,7 +228,7 @@ function run_model()
     N_b = 10^3     
     I_b₀ = 0
     S₀_b = N_b-I_b₀ 
-    σₘ = 0.0158#0.0158
+    σₘ = 0.0010 #0.0158
 
     #Calculate mutation matrix
     m,c_m = create_mutation_matrix(Nₚ,σₘ)
@@ -250,20 +238,22 @@ function run_model()
     I[z_start_idx].number[1] = I_a₀
     I[z_start_idx].number[2] = I_b₀
     @show I[z_start_idx]   
-
     
     t₀ = 0.0
-    t_end = 1000.0
+    t_end = 200.0
 
     β_max = [β_aa_max β_ab_max;β_ab_max β_bb_max]
-    γ = (γ_a,γ_b)
+    τ = (τ_a,τ_b)
     N = [N_a,N_b]
 
-    p = c,μₘ,σₘ,γ,β_max,N,c_m,t_end
+    p = γ,μₘ,σₘ,τ,β_max,N,c_m,t_end
 
-    n_samples = 50
+    n_samples = 1000
 
-    S_vec,I_vec,t_vec = run_Gillespie!(S,I,t₀,p,n_samples)       
+    S_vec,I_vec,t_vec = run_Gillespie!(S,I,t₀,p,n_samples) 
+    
+    draw_evolution(t_vec,I_vec,"evol_plot") 
+    draw_compartments(t_vec,I_vec,S_vec,"comp_plot")  
 end
 
 run_model()
