@@ -130,7 +130,7 @@ function run_Gillespie!(S::Vector{T},
         t = SIS_Gillespie!(S,I,n_species,t,p)    
 
         if t>t₀+sample_nr*Δt_sample
-            println("$(sample_nr)/$(n_samples)")
+            #println("$(sample_nr)/$(n_samples)")
             push!(S_vec,copy(S))         
             push!(t_vec,t) 
             push!(I_vec,deepcopy(I))          
@@ -156,7 +156,8 @@ function draw_evolution(t_vec,I_vec,img_name)
 
         if I_tot>0
             q_strain = I_strain/I_tot
-            ev_pl[t_idx,:] = 1.0.-q_strain
+
+            ev_pl[t_idx,:] .= 1.0.-q_strain
         end       
         
     end    
@@ -167,7 +168,7 @@ function draw_evolution(t_vec,I_vec,img_name)
     c=cgrad(:grays),
     xlabel="Time", ylabel="strategy (Z)")
 
-    savefig(plt,"./fig/AD_2_Species/parameter_influence/model_check/"*img_name*".svg")
+    savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
 end
 
 function draw_compartments(t_vec,I_vec,S_vec,img_name)    
@@ -187,11 +188,18 @@ function draw_compartments(t_vec,I_vec,S_vec,img_name)
         plot!(plt,t_vec,S_plot_mat[:,species_idx])
         plot!(plt,t_vec,I_plot_mat[:,species_idx])
     end
-    savefig(plt,"./fig/AD_2_Species/parameter_influence/model_check/"*img_name*".svg")
+    savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
 end
 
+function run_sample!(S,I,t₀,p,n_samples,file_name)     
+    S_vec,I_vec,t_vec = run_Gillespie!(S,I,t₀,p,n_samples) 
 
-function run_model()    
+    JLD2.@save "./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*".jld2" S_vec I_vec t_vec
+
+    return nothing
+end
+
+function run_sample(file_name)    
     Nₚ = 200 #Number of strains 
     z_vec = z_fun.(1:Nₚ,Ref(Nₚ)) #Pathogen strains
 
@@ -202,7 +210,7 @@ function run_model()
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
     μ_a = 0.2
-    μ_b = 0.25   
+    μ_b = 0.33 
     c = 0.8 #Intraspecific transmission rate coefficint
 
     τ_a(z) = τ_fun(z,μ_a,σ²,amplitude)
@@ -240,7 +248,7 @@ function run_model()
     @show I[z_start_idx]   
     
     t₀ = 0.0
-    t_end = 200.0
+    t_end = 1000.0
 
     β_max = [β_aa_max β_ab_max;β_ab_max β_bb_max]
     τ = (τ_a,τ_b)
@@ -250,10 +258,36 @@ function run_model()
 
     n_samples = 1000
 
-    S_vec,I_vec,t_vec = run_Gillespie!(S,I,t₀,p,n_samples) 
-    
-    draw_evolution(t_vec,I_vec,"evol_plot") 
-    draw_compartments(t_vec,I_vec,S_vec,"comp_plot")  
+    #file_name = "run_1"
+
+    run_sample!(S,I,t₀,p,n_samples,file_name)
+
+    return nothing
 end
 
-run_model()
+function run_model()
+    file_name = "run_1"
+
+    run_sample(file_name) 
+
+    S_vec = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*".jld2","S_vec")
+    I_vec = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*".jld2","I_vec")
+    t_vec = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*".jld2","t_vec")
+
+    draw_evolution(t_vec,I_vec,"evol_plot") 
+    draw_compartments(t_vec,I_vec,S_vec,"comp_plot") 
+end
+
+
+function create_samples() 
+    file_name = "sample"
+    n_samples = 20
+    Threads.@threads for i in 1:n_samples
+        run_sample(file_name*"_$(i)")
+        println("Done: sample $(i)/$(n_samples)")
+    end
+    return nothing
+end
+
+#run_model()
+create_samples() 
