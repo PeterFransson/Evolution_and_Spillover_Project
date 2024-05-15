@@ -6,6 +6,12 @@ mutable struct Infected
     strategy::Real #Pathogen strategy
 end
 
+function Base.:+(a::Infected,b::Infected)
+    length(a.number)==length(b.number)||error("length(a.number)!=length(b.number)")
+    a.strategy≈b.strategy||println("Warning: a.strategy!≈b.strategy")
+    return Infected(a.number+b.number,a.strategy)
+end
+
 τ_fun(r,rand_num) = -log(rand_num)/r
 
 #Simpson's 1/3 rule
@@ -224,7 +230,7 @@ function run_sample(file_name)
 
     @show β_ab_max = (β_aa_max+β_bb_max)/2*c
     
-    μₘ = 0.001 #Mutation rate
+    μₘ = 0.01 #Mutation rate
 
     @show z_start_idx = floor(Int64,μ_a*Nₚ)
     @show z_start = z_fun(z_start_idx,Nₚ) 
@@ -248,7 +254,7 @@ function run_sample(file_name)
     @show I[z_start_idx]   
     
     t₀ = 0.0
-    t_end = 1000.0
+    t_end = 250.0
 
     β_max = [β_aa_max β_ab_max;β_ab_max β_bb_max]
     τ = (τ_a,τ_b)
@@ -278,6 +284,58 @@ function run_model()
     draw_compartments(t_vec,I_vec,S_vec,"comp_plot") 
 end
 
+function infect_interpolation(t,I_vec,t_vec)
+    t>t_vec[1]||return [sum(strain.number) for strain in I_vec[1]]
+    t<t_vec[end]||return [sum(strain.number) for strain in I_vec[end]]
+    t_end_idx = findfirst(t_vec.>t)
+    t_start_idx = t_end_idx-1
+    t₁ = t_vec[t_end_idx]
+    t₀ = t_vec[t_start_idx]
+    Δt = t₁-t₀
+    a₀ = (t₁-t)/Δt
+    a₁ = (t-t₀)/Δt
+    return [sum(I_vec[t_start_idx][strain_idx].number)*a₀+sum(I_vec[t_end_idx][strain_idx].number)*a₁ for strain_idx in eachindex(I_vec[t_start_idx])]
+end
+
+function create_mean_traj(img_name,t_start,t_end,n_time,n_samples)
+
+    file_name = "sample_" 
+
+    I_vec = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*"$(1).jld2","I_vec")
+    n_strains = length(I_vec[1])
+    strategy_strain = [strain.strategy for strain in I_vec[1]]
+
+    t_vec_new = collect(range(t_start,stop=t_end,length=n_time)) #Time line for mean evolution plot    
+    ev_pl = ones(n_time,n_strains) #evolution plot  
+    
+    #Calculate mean trajectory
+    for sample in 1:n_samples 
+        I_vec_temp = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*"$(sample).jld2","I_vec")
+        t_vec_temp = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*"$(sample).jld2","t_vec")
+        for (t_idx,t) in enumerate(t_vec_new)       
+            ev_pl[t_idx,:]+=infect_interpolation(t,I_vec_temp,t_vec_temp)              
+        end    
+    end
+    
+    #Calcaulte frequency
+    for t_idx in eachindex(t_vec_new)       
+        
+        I_tot = sum(ev_pl[t_idx,:])
+
+        if I_tot>0
+            q_strain = ev_pl[t_idx,:]/I_tot
+            ev_pl[t_idx,:] .= 1.0.-q_strain
+        end        
+    end    
+        
+    plt = heatmap(strategy_strain,
+    t_vec_new,
+    ev_pl,
+    c=cgrad(:grays),
+    xlabel="Time", ylabel="strategy (Z)")
+
+    savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
+end
 
 function create_samples() 
     file_name = "sample"
@@ -288,6 +346,14 @@ function create_samples()
     end
     return nothing
 end
+function create_sample_fig()
+    t_start = 0.0
+    t_end = 250.0
+    n_time = 1000
+    n_samples = 20
+    create_mean_traj("mean_ev",t_start,t_end,n_time,n_samples)
+end
 
 #run_model()
 create_samples() 
+create_sample_fig()
