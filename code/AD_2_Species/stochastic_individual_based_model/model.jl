@@ -6,6 +6,16 @@ mutable struct Infected
     strategy::Real #Pathogen strategy
 end
 
+#Stochastic simulation parameter
+mutable struct StocSimPar
+    Nₚ::Integer #Number of strains
+    μₘ::Real #Mutation rate
+    σₘ::Real #Mutation standard deviation
+    t₀::Real #Simualtion start time 
+    t_end::Real #Simualtion end time 
+    n_samples::Integer #Number of time samples
+end
+
 function Base.:+(a::Infected,b::Infected)
     length(a.number)==length(b.number)||error("length(a.number)!=length(b.number)")
     a.strategy≈b.strategy||println("Warning: a.strategy!≈b.strategy")
@@ -97,9 +107,9 @@ function SIS_Gillespie!(S::Vector{U},
         pathogen_strains_mutant = find_weighted_idx(r_rnd,c_m[pathogen_strains,:]) 
         mutant_strategy = I[pathogen_strains_mutant].strategy
 
-        #if τ[species](mutant_strategy)>τ[species](resident_strategy)
-            I[pathogen_strains_mutant].number[species]+=1
-            I[pathogen_strains].number[species] -= 1                
+        #if τ[species](mutant_strategy)>τ[species](resident_strategy) #No within-host competition
+        I[pathogen_strains_mutant].number[species]+=1
+        I[pathogen_strains].number[species] -= 1                
         #end
         return t+Δt 
     elseif state==3 #infection
@@ -163,7 +173,8 @@ function draw_evolution(t_vec,I_vec,img_name)
         if I_tot>0
             q_strain = I_strain/I_tot
 
-            ev_pl[t_idx,:] .= 1.0.-q_strain
+            #ev_pl[t_idx,:] .= 1.0.-q_strain
+            ev_pl[t_idx,q_strain.>0.01] .= 0.0
         end       
         
     end    
@@ -174,7 +185,8 @@ function draw_evolution(t_vec,I_vec,img_name)
     c=cgrad(:grays),
     xlabel="Time", ylabel="strategy (Z)")
 
-    savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
+    #savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
+    savefig(plt,img_name*".svg")
 end
 
 function draw_compartments(t_vec,I_vec,S_vec,img_name)    
@@ -194,30 +206,31 @@ function draw_compartments(t_vec,I_vec,S_vec,img_name)
         plot!(plt,t_vec,S_plot_mat[:,species_idx])
         plot!(plt,t_vec,I_plot_mat[:,species_idx])
     end
-    savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
+    #savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
+    savefig(plt,img_name*".svg")
 end
 
-function run_sample!(S,I,t₀,p,n_samples,file_name)     
+function run_sample!(S,I,t₀,p,n_samples,file_name,syspar::SystemParameters,simpar::StocSimPar)     
     S_vec,I_vec,t_vec = run_Gillespie!(S,I,t₀,p,n_samples) 
 
-    JLD2.@save "./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*".jld2" S_vec I_vec t_vec
+    JLD2.@save "./output/AD_2_Species/stochastic_simulation/discrete_model/"*file_name*".jld2" S_vec I_vec t_vec syspar simpar
 
     return nothing
 end
 
-function run_sample(file_name)    
-    Nₚ = 200 #Number of strains 
+function run_sample(file_name,syspar::SystemParameters,simpar::StocSimPar)    
+    Nₚ = simpar.Nₚ #200 #Number of strains <---- 
     z_vec = z_fun.(1:Nₚ,Ref(Nₚ)) #Pathogen strains
 
     #maximum intraspecific basic reproduction number
-    R₀_aa_max = 2.44
-    R₀_bb_max = 2.44 
+    #R₀_aa_max = 2.44
+    #R₀_bb_max = 2.44 
 
-    γ = 0.1 #Recovery rate    
-    σ²,amplitude = 0.0025,1.0
-    μ_a = 0.2
-    μ_b = 0.33 
-    c = 0.8 #Intraspecific transmission rate coefficint
+    γ = syspar.γ_a #assumption syspar.γ_a=syspar.γ_b #0.1 #Recovery rate    
+    σ²,amplitude = syspar.σ²,syspar.τ_max#0.0025,1.0
+    μ_a = syspar.z_a#0.2
+    μ_b = syspar.z_b#0.33 
+    #c = 0.8 #Intraspecific transmission rate coefficint
 
     τ_a(z) = τ_fun(z,μ_a,σ²,amplitude)
     τ_b(z) = τ_fun(z,μ_b,σ²,amplitude)    
@@ -225,24 +238,26 @@ function run_sample(file_name)
     #Parameters
 
     #Maximum intraspecific transmission rate
-    @show β_aa_max = R₀_aa_max*γ
-    @show β_bb_max = R₀_bb_max*γ
+    @show β_aa_max = syspar.c_aa#R₀_aa_max*γ
+    @show β_bb_max = syspar.c_bb#R₀_bb_max*γ
 
-    @show β_ab_max = (β_aa_max+β_bb_max)/2*c
+    @show β_ab_max = syspar.c_ab#(β_aa_max+β_bb_max)/2*c
     
-    μₘ = 0.01 #Mutation rate
+    μₘ = simpar.μₘ#0.01 #Mutation rate <----
 
     @show z_start_idx = floor(Int64,μ_a*Nₚ)
     @show z_start = z_fun(z_start_idx,Nₚ) 
 
     #Initial states
-    N_a = 10^3     
+    N_a = syspar.N_a#10^3     
+    N_a>2||error("N_a<3")
     I_a₀ = 2  
     S₀_a = N_a-I_a₀ 
-    N_b = 10^3     
+    N_b = syspar.N_b#10^3    
+    N_b>2||error("N_b<3") 
     I_b₀ = 0
     S₀_b = N_b-I_b₀ 
-    σₘ = 0.0010 #0.0158
+    σₘ = simpar.σₘ#0.0010 #0.0158 <----
 
     #Calculate mutation matrix
     m,c_m = create_mutation_matrix(Nₚ,σₘ)
@@ -253,8 +268,8 @@ function run_sample(file_name)
     I[z_start_idx].number[2] = I_b₀
     @show I[z_start_idx]   
     
-    t₀ = 0.0
-    t_end = 250.0
+    t₀ = simpar.t₀#0.0 #<----
+    t_end = simpar.t_end#250.0 #<----
 
     β_max = [β_aa_max β_ab_max;β_ab_max β_bb_max]
     τ = (τ_a,τ_b)
@@ -262,11 +277,9 @@ function run_sample(file_name)
 
     p = γ,μₘ,σₘ,τ,β_max,N,c_m,t_end
 
-    n_samples = 1000
+    n_samples = simpar.n_samples#1000 #<----   
 
-    #file_name = "run_1"
-
-    run_sample!(S,I,t₀,p,n_samples,file_name)
+    run_sample!(S,I,t₀,p,n_samples,file_name,syspar,simpar)
 
     return nothing
 end
@@ -339,20 +352,108 @@ end
 
 function create_samples() 
     file_name = "sample"
-    n_samples = 20
-    Threads.@threads for i in 1:n_samples
-        run_sample(file_name*"_$(i)")
-        println("Done: sample $(i)/$(n_samples)")
+    n_traj = 5 #Number of trajectories
+
+    folder_name = "test_3/"  
+    isdir("./output/AD_2_Species/stochastic_simulation/discrete_model/"*folder_name)||mkdir("./output/AD_2_Species/stochastic_simulation/discrete_model/"*folder_name)
+
+    Threads.@threads for i in 1:n_traj
+
+        #--Create system parameter-- 
+
+        #maximum intraspecific basic reproduction number
+        R₀_aa_max = 2.44
+        R₀_bb_max = 2.44
+
+        γ = 0.1 #Recovery rate    
+        σ²,amplitude = 0.0025,1.0
+        μ_a = 0.2
+        μ_b = 0.33 
+        c = 0.8
+        
+        N_a = 10^3
+        N_b = 10^3    
+                
+        #Maximum intraspecific transmission rate
+        β_aa_max = R₀_aa_max*γ
+        β_bb_max = R₀_bb_max*γ
+        β_ab_max = (β_aa_max+β_bb_max)/2*c
+
+        syspar = SystemParameters(μ_a,μ_b,β_aa_max,β_bb_max,β_ab_max,N_a,N_b,γ,γ,σ²,amplitude)
+
+        #--Create stochastic simulation parameter-- 
+        Nₚ = 300 #Number of strains
+        μₘ = 0.01 #Mutation rate <----
+        σₘ = 0.0001 #0.0158 <----
+        t₀ = 0.0 #<----
+        t_end = 1000.0 #<----
+        n_samples = 1000 #<----   
+
+        simpar=StocSimPar(Nₚ,μₘ,σₘ,t₀,t_end,n_samples)              
+
+        #Run simulation
+        run_sample(folder_name*file_name*"_$(i)",syspar,simpar)
+        println("Done: sample $(i)/$(n_traj)")
     end
     return nothing
 end
 function create_sample_fig()
+    #=
     t_start = 0.0
     t_end = 250.0
     n_time = 1000
     n_samples = 20
     create_mean_traj("mean_ev",t_start,t_end,n_time,n_samples)
+    =#
+
+    file_name = "sample"
+    n_traj = 5 #Number of trajectories
+
+    subfolder_name = "./fig/AD_2_Species/stochastic_simulation/discrete_model/"
+    folder_name = "test_3/"  
+
+    isdir(subfolder_name*folder_name)||mkdir(subfolder_name*folder_name)
+
+    for i in 1:n_traj
+        S_vec = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*folder_name*file_name*"_$(i).jld2","S_vec")
+        I_vec = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*folder_name*file_name*"_$(i).jld2","I_vec")
+        t_vec = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*folder_name*file_name*"_$(i).jld2","t_vec")
+    
+        syspar = JLD2.load("./output/AD_2_Species/stochastic_simulation/discrete_model/"*folder_name*file_name*"_$(i).jld2","syspar")       
+
+        folder_name_temp = subfolder_name*folder_name*"/sample_$(i)/"
+        isdir(folder_name_temp)||mkdir(folder_name_temp)
+
+        draw_evolution(t_vec,I_vec,folder_name_temp*"evol_plot") 
+        draw_compartments(t_vec,I_vec,S_vec,folder_name_temp*"comp_plot") 
+
+        z_start = syspar.z_a-0.02
+        z_start>0||error("z_start<0")
+        z_end = syspar.z_b+0.02
+        
+        #Initial values
+        Nₚ = 1000
+        N_a = syspar.N_a    
+        N_a>2||error("N_a<3")
+        I_a₀ = 1  
+        S₀_a = N_a-I_a₀ 
+         
+        N_b = syspar.N_b   
+        N_b>2||error("N_b<3")
+        I_b₀ = 1
+        S₀_b = N_b-I_b₀  
+
+        t_start = 0
+        t_end = 7000
+        tspan = (t_start,t_end)
+
+        u₀ = [S₀_a I_a₀;S₀_b I_b₀]  
+
+        option = z_start,z_end,Nₚ,u₀,tspan    
+        draw_PIP(folder_name_temp*"PIP",syspar,option)            
+    end
 end
+
 
 #run_model()
 create_samples() 
