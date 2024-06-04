@@ -292,6 +292,24 @@ function create_coex_region(syspar::SystemParameters,option)
     return coex_region
 end
 
+#Draw region of coexisting strains
+function draw_coex_region(fig_name,syspar::SystemParameters,option)
+    z_start,z_end,Nₚ,u₀,tspan = option
+    μ_a,μ_b = syspar.z_a,syspar.z_b
+
+    coex_region = create_coex_region(syspar,option)
+
+    z_vec = range(z_start,stop=z_end,length=Nₚ) 
+    heatmap(z_vec,z_vec,coex_region)   
+    plot!([z_start,z_end],[z_start,z_end],c=:green)
+    plot!([μ_a,μ_a],[z_start,z_end],c=:red)
+    plot!([z_start,z_end],[μ_a,μ_a],c=:red)
+    plot!([z_start,z_end],[μ_b,μ_b],c=:blue)
+    savefig(fig_name*".svg")
+
+    return nothing
+end
+
 function create_TEP(syspar::SystemParameters,option,coex_region::Matrix{T};ϵ::Real=1e-6) where{T}
     z_start,z_end,Nₚ,u₀,tspan,u₀_2_strain = option
         
