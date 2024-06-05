@@ -162,10 +162,9 @@ function draw_evolution(t_vec,I_vec,img_name)
     n_strains = length(I_vec[1])
     strategy_strain = [strain.strategy for strain in I_vec[1]]
 
-    ev_pl = ones(n_time,n_strains) #evolution plot      
+    ev_pl = zeros(n_time,n_strains) #evolution plot      
 
     for t_idx in 1:n_time
-
         I_strain = [sum(strain.number) for strain in I_vec[t_idx]]
         
         I_tot = sum(I_strain)
@@ -174,18 +173,17 @@ function draw_evolution(t_vec,I_vec,img_name)
             q_strain = I_strain/I_tot
 
             #ev_pl[t_idx,:] .= 1.0.-q_strain
-            ev_pl[t_idx,q_strain.>0.01] .= 0.0
+            ev_pl[t_idx,q_strain.>0.01] .= 1.0            
         end       
-        
     end    
    
     plt = heatmap(strategy_strain,
     t_vec,
     ev_pl,
-    c=cgrad(:grays),
-    xlabel="Time", ylabel="strategy (Z)")
-
-    #savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
+    c=cgrad(:grayC),
+    cbar=false,    
+    xlabel="strategy (Z)", ylabel="Time")
+    
     savefig(plt,img_name*".svg")
 end
 
@@ -206,11 +204,9 @@ function draw_compartments(t_vec,I_vec,S_vec,img_name)
         plot!(plt,t_vec,S_plot_mat[:,species_idx])
         plot!(plt,t_vec,I_plot_mat[:,species_idx])
     end
-    #savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
+   
     savefig(plt,img_name*".svg")
 end
-
-#"./output/AD_2_Species/stochastic_simulation/discrete_model/"*
 
 function run_sample!(S,I,t₀,p,n_samples,file_name::AbstractString,syspar::SystemParameters,simpar::StocSimPar)     
     S_vec,I_vec,t_vec = run_Gillespie!(S,I,t₀,p,n_samples) 
@@ -234,7 +230,6 @@ function run_sample(file_name::AbstractString,syspar::SystemParameters,simpar::S
     τ_b(z) = τ_fun(z,μ_b,σ²,amplitude)    
    
     #Parameters
-
     #Maximum intraspecific transmission rate
     β_aa_max = syspar.c_aa
     β_bb_max = syspar.c_bb
@@ -348,9 +343,6 @@ function create_mean_traj(img_name,t_start,t_end,n_time,n_samples)
     savefig(plt,"./fig/AD_2_Species/stochastic_simulation/discrete_model/"*img_name*".svg")
 end
 
-#folder_name = "test_8_2/"
-#"./output/AD_2_Species/stochastic_simulation/discrete_model/"*folder_name
-
 function create_samples(folder_name::AbstractString,syspar::SystemParameters,simpar::StocSimPar;n_traj::Integer=8) 
     file_name = "sample"
           
@@ -371,9 +363,7 @@ function create_sample_fig(data_folder::AbstractString,figure_folder::AbstractSt
     for i in 1:n_traj
         S_vec = JLD2.load(data_folder*file_name*"_$(i).jld2","S_vec")
         I_vec = JLD2.load(data_folder*file_name*"_$(i).jld2","I_vec")
-        t_vec = JLD2.load(data_folder*file_name*"_$(i).jld2","t_vec")
-    
-        syspar = JLD2.load(data_folder*file_name*"_$(i).jld2","syspar")       
+        t_vec = JLD2.load(data_folder*file_name*"_$(i).jld2","t_vec")        
 
         figure_folder_temp = figure_folder*"/sample_$(i)/"
         isdir(figure_folder_temp)||mkdir(figure_folder_temp)
@@ -383,51 +373,21 @@ function create_sample_fig(data_folder::AbstractString,figure_folder::AbstractSt
     end
 end
 
-function draw_PIP_n_coex_region(fig_name::AbstractString,syspar::SystemParameters)  
-    z_start = syspar.z_a-0.02
-    z_start>0||error("z_start<0")
-    z_end = syspar.z_b+0.02
-    
-    #Initial values
-    Nₚ = 1000
-    N_a = syspar.N_a    
-    N_a>2||error("N_a<3")
-    I_a₀ = 1  
-    S₀_a = N_a-I_a₀ 
-     
-    N_b = syspar.N_b   
-    N_b>2||error("N_b<3")
-    I_b₀ = 1
-    S₀_b = N_b-I_b₀  
-
-    t_start = 0
-    t_end = 7000
-    tspan = (t_start,t_end)
-
-    u₀ = [S₀_a I_a₀;S₀_b I_b₀]  
-
-    option = z_start,z_end,Nₚ,u₀,tspan 
-
-    draw_PIP(fig_name*"PIP",syspar,option)    
-    draw_coex_region(fig_name*"Coex_reg",syspar,option)  
-
-    return nothing
-end
-
 function work_list()
     #--Create system parameter-- 
 
     #maximum intraspecific basic reproduction number
-    R₀_aa_max = 2.44
+    R₀_aa_max = 1.4
     R₀_bb_max = 2.44
 
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
     μ_a = 0.2
     μ_b = 0.35
-    c = 0.8
+    @show Δᵣ = (μ_b-μ_a)/sqrt(2*σ²)
     @show c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
-    
+    c = 0.5
+        
     N_a = 10^3
     N_b = 10^3    
             
@@ -450,18 +410,18 @@ function work_list()
 
     n_traj=8
 
-    sub_folder_name = "test_12/"
+    sub_folder_name = "test_14/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/discrete_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/discrete_model/"*sub_folder_name
 
     isdir(figure_folder)||mkdir(figure_folder)
     
-    draw_PIP_n_coex_region(figure_folder,syspar)  
+    #draw_PIP_n_coex_region(figure_folder,syspar)  
 
     #Create samples
-    create_samples(data_folder_name,syspar,simpar;n_traj=n_traj)
+    #create_samples(data_folder_name,syspar,simpar;n_traj=n_traj)
     #Create sample figures
-    create_sample_fig(data_folder_name,figure_folder,n_traj)
+    #create_sample_fig(data_folder_name,figure_folder,n_traj)
 
     return nothing 
 end

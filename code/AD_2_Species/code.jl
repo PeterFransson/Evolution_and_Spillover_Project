@@ -471,3 +471,34 @@ function singular_strategies(syspar::SystemParameters,option)
 
     return sing_strats
 end
+
+function draw_PIP_n_coex_region(fig_name::AbstractString,syspar::SystemParameters)  
+    z_start = syspar.z_a-0.02
+    z_start>0||error("z_start<0")
+    z_end = syspar.z_b+0.02
+    
+    #Initial values
+    Nₚ = 1000
+    N_a = syspar.N_a    
+    N_a>2||error("N_a<3")
+    I_a₀ = 1  
+    S₀_a = N_a-I_a₀ 
+     
+    N_b = syspar.N_b   
+    N_b>2||error("N_b<3")
+    I_b₀ = 1
+    S₀_b = N_b-I_b₀  
+
+    t_start = 0
+    t_end = 7000
+    tspan = (t_start,t_end)
+
+    u₀ = [S₀_a I_a₀;S₀_b I_b₀]  
+
+    option = z_start,z_end,Nₚ,u₀,tspan 
+
+    draw_PIP(fig_name*"PIP",syspar,option)    
+    draw_coex_region(fig_name*"Coex_reg",syspar,option)  
+
+    return nothing
+end
