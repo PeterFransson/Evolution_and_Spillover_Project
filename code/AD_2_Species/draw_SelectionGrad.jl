@@ -1,6 +1,7 @@
 function draw_gif()
-    δz_vec = range(0.05,stop=0.15,length=100)
+    #δz_vec = range(0.05,stop=0.15,length=100)
 
+    #=
     γ = 0.1 
     z_start = 0.18
     σ²,amplitude = 0.0025,0.6
@@ -11,6 +12,28 @@ function draw_gif()
     c_aa = 0.425
     c_bb = 0.425
     c_ab = 0.3
+    =#  
+
+    z_start = 0.18
+    μ_a = 0.2
+    Nₚ = 1500   
+
+    #maximum intraspecific basic reproduction number
+    R₀_aa_max = 1.4
+    R₀_bb_max = R₀_aa_max*1.1
+
+    γ = 0.1 #Recovery rate    
+    σ²,amplitude = 0.0025,1.0
+
+    δz_vec = collect(range(1.0,stop=1.88889,length=100))*sqrt(2*σ²)
+
+    c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
+    c = c_crit*0.8
+
+    #Maximum intraspecific transmission rate
+    β_aa_max = R₀_aa_max*γ
+    β_bb_max = R₀_bb_max*γ
+    β_ab_max = (β_aa_max+β_bb_max)/2*c
     
     N_a = 10^3   
     N_b = 10^3 
@@ -34,7 +57,8 @@ function draw_gif()
         z_end = 0.2+δz+0.05
 
         option = z_start,z_end,Nₚ,u₀,tspan
-        syspar = SystemParameters(μ_a,μ_b,c_aa,c_bb,c_ab,N_a,N_b,γ,γ,σ²,amplitude)
+        #syspar = SystemParameters(μ_a,μ_b,c_aa,c_bb,c_ab,N_a,N_b,γ,γ,σ²,amplitude)        
+        syspar = SystemParameters(μ_a,μ_b,β_aa_max,β_bb_max,β_ab_max,N_a,N_b,γ,γ,σ²,amplitude) 
         
         strats = singular_strategies(syspar,option)
         

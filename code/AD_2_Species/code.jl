@@ -502,3 +502,30 @@ function draw_PIP_n_coex_region(fig_name::AbstractString,syspar::SystemParameter
 
     return nothing
 end
+
+function check_R₀_region(syspar::SystemParameters,z_start::Real,z_end::Real;N::Integer=1000)    
+    S₀ = [syspar.N_a,syspar.N_b]
+    strains=range(z_start,stop=z_end,length=N)
+
+    check_system_matrix(z_start,S₀,syspar)&&check_system_matrix(z_end,S₀,syspar)||error("R₀ for one of the species is < 1.0")
+
+    matrix_instable = [check_system_matrix(strain,S₀,syspar) for strain in strains]
+    
+    intervals = Tuple{Real,Real,Bool}[]
+
+    start_interval_idx = 1
+    interval_type = matrix_instable[1]
+
+    for i in eachindex(strains)
+        if interval_type!=matrix_instable[i]
+            start_interval_idx!=i-1||error("interval error: try to increas N")
+            push!(intervals,(strains[start_interval_idx],strains[i-1],interval_type))
+            start_interval_idx  = i
+            interval_type = matrix_instable[i]
+        end
+    end
+
+    push!(intervals,(strains[start_interval_idx],strains[end],interval_type))
+
+    return intervals
+end

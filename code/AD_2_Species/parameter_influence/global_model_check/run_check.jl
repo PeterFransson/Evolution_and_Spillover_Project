@@ -38,7 +38,7 @@ end
 
 function compute()    
     δz_vec = collect(range(0.05,stop=0.15,length=100)) #Distance between species in resource space 
-    c_vec = [0.1 0.15 0.2 0.3 0.4 0.5] #Intraspecific transmission rate coefficint
+    c_vec = [0.1 0.15 0.2 0.3 0.4 0.5] #Intraspecific transmission rate coefficient
 
     JLD2.@save "./output/AD_2_Species/parameter_influence/model_check/c_dz_info.jld2" c_vec δz_vec
     
