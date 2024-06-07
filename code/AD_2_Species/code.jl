@@ -529,3 +529,41 @@ function check_R₀_region(syspar::SystemParameters,z_start::Real,z_end::Real;N:
 
     return intervals
 end
+
+function get_singular_strategies(syspar::SystemParameters,
+    z_start::Real,
+    z_end::Real;
+    Nₚ::Integer = 3000,
+    t_end::Real = 8000)
+    
+    R₀_intervals = check_R₀_region(syspar,z_start,z_end;N=Nₚ)  
+     
+    N_a = syspar.N_a    
+    N_a>2||error("N_a<3")
+    I_a₀ = 1  
+    S₀_a = N_a-I_a₀ 
+    
+    N_b = syspar.N_b   
+    N_b>2||error("N_b<3")
+    I_b₀ = 1
+    S₀_b = N_b-I_b₀     
+
+    t_start = 0
+    
+    tspan = (t_start,t_end)
+
+    u₀ = [S₀_a I_a₀;S₀_b I_b₀]    
+
+    strat = SingularStrat[]
+
+    for interval in R₀_intervals 
+        if last(interval)
+            z_start_temp,z_end_temp = interval[1],interval[2]
+            option = z_start_temp,z_end_temp,Nₚ,u₀,tspan 
+        
+            strat_temp = singular_strategies(syspar,option)
+            append!(strat,strat_temp)
+        end
+    end
+    return (strat,any(last.(R₀_intervals).==false))
+end

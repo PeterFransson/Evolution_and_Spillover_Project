@@ -383,7 +383,7 @@ function work_list()
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
     μ_a = 0.2
-    μ_b = 0.29
+    μ_b = 0.37
     @show Δᵣ = (μ_b-μ_a)/sqrt(2*σ²)
     @show c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
     c = 0.5
@@ -415,46 +415,13 @@ function work_list()
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/discrete_model/"*sub_folder_name
 
     isdir(figure_folder)||mkdir(figure_folder)
-
     
-    
-    draw_PIP_n_coex_region(figure_folder,syspar) 
-    
-
-    Nₚ = 3000 #Number of strains
-
-    @show R₀_intervals = check_R₀_region(syspar,syspar.z_a-0.02,syspar.z_b+0.02;N=Nₚ)  
-            
-    I_a₀ = 1  
-    S₀_a = N_a-I_a₀ 
-        
-    I_b₀ = 1
-    S₀_b = N_b-I_b₀     
-
-    t_start = 0
-    t_end = 8000
-    tspan = (t_start,t_end)
-
-    u₀ = [S₀_a I_a₀;S₀_b I_b₀]    
-
-    strat = SingularStrat[]
-
-    for interval in R₀_intervals 
-        if last(interval)
-            z_start,z_end = interval[1],interval[2]
-            option = z_start,z_end,Nₚ,u₀,tspan 
-        
-            strat_temp = singular_strategies(syspar,option)
-            append!(strat,strat_temp)
-        end
-    end
-    @show strat
-
+    draw_PIP_n_coex_region(figure_folder,syspar)    
 
     #Create samples
-    #create_samples(data_folder_name,syspar,simpar;n_traj=n_traj)
+    create_samples(data_folder_name,syspar,simpar;n_traj=n_traj)
     #Create sample figures
-    #create_sample_fig(data_folder_name,figure_folder,n_traj)
+    create_sample_fig(data_folder_name,figure_folder,n_traj)
 
     return nothing 
 end

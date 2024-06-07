@@ -1,4 +1,4 @@
-function create_PIP(R₀_ratio::Real,Δᵣ::Real,c_ratio::Real,figure_name::AbstractString) 
+function create_syspar(R₀_ratio::Real,Δᵣ::Real,c_ratio::Real)     
     #--Create system parameter-- 
 
     #maximum intraspecific basic reproduction number
@@ -22,13 +22,13 @@ function create_PIP(R₀_ratio::Real,Δᵣ::Real,c_ratio::Real,figure_name::Abst
     β_ab_max = (β_aa_max+β_bb_max)/2*c
 
     syspar = SystemParameters(μ_a,μ_b,β_aa_max,β_bb_max,β_ab_max,N_a,N_b,γ,γ,σ²,amplitude) 
-    
-    draw_PIP_n_coex_region(figure_name,syspar)
+
+    return syspar 
 end 
 
-function pip_work_list()
-    R₀_ratio_vec = [0.7]#[1.0,1.5,2.0]
-    Δᵣ_vec = collect(range(1.0,stop=3.0,length=15))
+function strat_work_list()
+    R₀_ratio_vec = [1.4]#[1.0,1.5,2.0]
+    Δᵣ_vec = collect(range(1.0,stop=3.0,length=25))
     c_ratio_vec = [0.8]#[0.8,0.6,0.2]
 
     for i in eachindex(R₀_ratio_vec)
@@ -36,14 +36,18 @@ function pip_work_list()
             for k in eachindex(c_ratio_vec)
                 R₀_ratio = R₀_ratio_vec[i]               
                 Δᵣ = Δᵣ_vec[j]                
-                c_ratio = c_ratio_vec[k]
+                c_ratio = c_ratio_vec[k]                
 
-                figure_name = "./fig/AD_2_Species/PIP_test/test_4/_R_$(i)_D_$(j)_C_$(k)_"
+                syspar = create_syspar(R₀_ratio,Δᵣ,c_ratio)  
 
-                create_PIP(R₀_ratio,Δᵣ,c_ratio,figure_name) 
+                (strats,R₀_bool) = get_singular_strategies(syspar,syspar.z_a-0.02,syspar.z_b+0.02) #R₀_bool true if there is a region with R₀<1
+                
+                JLD2.@save "./output/AD_2_Species/parameter_influence/test/strat_R_$(i)_D_$(j)_C_$(k).jld2" strats R₀_bool
             end            
         end        
     end
+
+    return nothing
 end
 
-pip_work_list()
+strat_work_list()
