@@ -95,13 +95,6 @@ function compute()
     end    
 end
 
-function Base.:(==)(a::SingularStrat,b::SingularStrat)
-    return a.conv_stable==b.conv_stable && a.evo_stable==b.evo_stable
-end
-function Base.:(==)(a::Vector{SingularStrat},b::Vector{SingularStrat})
-    return length(a)==length(b) && prod(a .== b)==1    
-end
-
 function find_singular_strategies_classes()
     c_vec = JLD2.load("./output/AD_2_Species/parameter_influence/model_check/c_dz_info.jld2","c_vec")
     δz_vec = JLD2.load("./output/AD_2_Species/parameter_influence/model_check/c_dz_info.jld2","δz_vec")

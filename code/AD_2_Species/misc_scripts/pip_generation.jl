@@ -27,18 +27,24 @@ function create_PIP(R₀_ratio::Real,Δᵣ::Real,c_ratio::Real,figure_name::Abst
 end 
 
 function pip_work_list()
+    #=
     R₀_ratio_vec = [0.7]#[1.0,1.5,2.0]
     Δᵣ_vec = collect(range(1.0,stop=3.0,length=15))
     c_ratio_vec = [0.8]#[0.8,0.6,0.2]
+    =#
 
-    for i in eachindex(R₀_ratio_vec)
-        for j in eachindex(Δᵣ_vec)
-            for k in eachindex(c_ratio_vec)
+    R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
+    c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
+    Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+
+    for i in [1]#eachindex(R₀_ratio_vec)
+        for j in [2,9]#eachindex(Δᵣ_vec)
+            for k in [1,3]#eachindex(c_ratio_vec)
                 R₀_ratio = R₀_ratio_vec[i]               
                 Δᵣ = Δᵣ_vec[j]                
                 c_ratio = c_ratio_vec[k]
 
-                figure_name = "./fig/AD_2_Species/PIP_test/test_4/_R_$(i)_D_$(j)_C_$(k)_"
+                figure_name = "./fig/AD_2_Species/PIP_test/test_sp/_R_$(i)_D_$(j)_C_$(k)_"
 
                 create_PIP(R₀_ratio,Δᵣ,c_ratio,figure_name) 
             end            

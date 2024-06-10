@@ -47,6 +47,13 @@ struct SingularStrat
     evo_stable::Bool #True if the strategy is evolutionarily stable
 end
 
+function Base.:(==)(a::SingularStrat,b::SingularStrat)
+    return a.conv_stable==b.conv_stable && a.evo_stable==b.evo_stable
+end
+function Base.:(==)(a::Vector{SingularStrat},b::Vector{SingularStrat})
+    return length(a)==length(b) && prod(a .== b)==1    
+end
+
 normal_d(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))/sqrt(2*π*σ²)
 τ_fun(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))
 τ_fun(x,μ,σ²,amplitude) = amplitude*τ_fun(x,μ,σ²)

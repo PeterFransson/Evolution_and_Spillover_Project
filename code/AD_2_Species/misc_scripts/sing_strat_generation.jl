@@ -27,13 +27,13 @@ function create_syspar(R₀_ratio::Real,Δᵣ::Real,c_ratio::Real)
 end 
 
 function strat_work_list()
-    R₀_ratio_vec = [1.4]#[1.0,1.5,2.0]
-    Δᵣ_vec = collect(range(1.0,stop=3.0,length=25))
-    c_ratio_vec = [0.8]#[0.8,0.6,0.2]
-
+    R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
+    c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
+    Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+    
     for i in eachindex(R₀_ratio_vec)
         for j in eachindex(Δᵣ_vec)
-            for k in eachindex(c_ratio_vec)
+            Threads.@threads for k in eachindex(c_ratio_vec)
                 R₀_ratio = R₀_ratio_vec[i]               
                 Δᵣ = Δᵣ_vec[j]                
                 c_ratio = c_ratio_vec[k]                
@@ -42,7 +42,7 @@ function strat_work_list()
 
                 (strats,R₀_bool) = get_singular_strategies(syspar,syspar.z_a-0.02,syspar.z_b+0.02) #R₀_bool true if there is a region with R₀<1
                 
-                JLD2.@save "./output/AD_2_Species/parameter_influence/test/strat_R_$(i)_D_$(j)_C_$(k).jld2" strats R₀_bool
+                JLD2.@save "./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2" strats R₀_bool syspar
             end            
         end        
     end
@@ -50,4 +50,66 @@ function strat_work_list()
     return nothing
 end
 
-strat_work_list()
+function isequal(a::Tuple{Vector{SingularStrat},Bool},b::Tuple{Vector{SingularStrat},Bool})
+    return first(a)==first(b) && last(a)==last(b)    
+end
+
+function get_strat_types()
+    R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
+    c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
+    Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+    
+    strat_types = Tuple{Vector{SingularStrat},Bool}[]
+    
+    for i in eachindex(R₀_ratio_vec)
+        for j in eachindex(Δᵣ_vec)
+            for k in eachindex(c_ratio_vec)
+                strats = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2","strats")
+                R₀_bool = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2","R₀_bool")
+                
+                if isempty(strat_types)
+                    push!(strat_types,(strats,R₀_bool))
+                end  
+                if !any(isequal.(strat_types,Ref((strats,R₀_bool)))) 
+                    push!(strat_types,(strats,R₀_bool))
+                end         
+            end
+        end
+    end
+
+    for strat in strat_types
+        println(strat)
+    end
+    
+    return nothing
+end
+
+function check_single_strat_type()
+    R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
+    c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
+    Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+
+    target_strat = (SingularStrat[SingularStrat(NaN, true, false),
+    SingularStrat(NaN, false, false),
+    SingularStrat(NaN, true, false)],
+    false)   
+    
+    for i in eachindex(R₀_ratio_vec)
+        for j in eachindex(Δᵣ_vec)
+            for k in eachindex(c_ratio_vec)
+                strats = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2","strats")
+                R₀_bool = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2","R₀_bool")
+                
+                if isequal(target_strat,(strats,R₀_bool))
+                    println("i: $(i), j: $(j), k: $(k)")
+                end                           
+            end
+        end
+    end  
+    
+    return nothing
+end
+
+#strat_work_list()
+#get_strat_types()
+check_single_strat_type()
