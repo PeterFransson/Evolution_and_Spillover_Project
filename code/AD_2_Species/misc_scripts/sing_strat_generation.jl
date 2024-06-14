@@ -110,6 +110,48 @@ function check_single_strat_type()
     return nothing
 end
 
+function type_table(in::Tuple{Vector{SingularStrat},Bool})
+    if isequal(in,(SingularStrat[SingularStrat(NaN, true, true)], false))
+        return "Type I"
+    elseif isequal(in,(SingularStrat[SingularStrat(NaN, true, false)], false))
+        return "Type II"
+    elseif isequal(in,(SingularStrat[SingularStrat(NaN, true, true), SingularStrat(NaN, false, false), SingularStrat(NaN, true, true)], false))   
+        return "Type III" 
+    elseif isequal(in,(SingularStrat[SingularStrat(NaN, true, true), SingularStrat(NaN, true, true)], true))  
+        return "Type IV"
+    else
+        return "Type transit"
+    end
+end
+
+function find_type_transition()
+    R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
+    c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
+    Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+
+    for i in [2] #R₀_ratio
+        for j in [5] #c_ratio       
+            strats_init = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(1)_C_$(j).jld2","strats")
+            R₀_bool_init = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(1)_C_$(j).jld2","R₀_bool")
+            current_strat = (strats_init,R₀_bool_init)  
+            transition_string = type_table(current_strat)     
+            for k in eachindex(Δᵣ_vec) #Δᵣ 
+                strats = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(k)_C_$(j).jld2","strats")
+                R₀_bool = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(k)_C_$(j).jld2","R₀_bool")
+                
+                if !isequal(current_strat,(strats,R₀_bool))
+                    current_strat = (strats,R₀_bool)
+                    transition_string*="->"*type_table(current_strat)
+                end                           
+            end
+            println(transition_string)
+        end
+    end  
+    
+    return nothing
+end
+
 #strat_work_list()
 #get_strat_types()
-check_single_strat_type()
+#check_single_strat_type()
+find_type_transition()
