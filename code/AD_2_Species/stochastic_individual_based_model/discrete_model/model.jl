@@ -165,15 +165,17 @@ function draw_evolution(t_vec,I_vec,img_name)
     ev_pl = zeros(n_time,n_strains) #evolution plot      
 
     for t_idx in 1:n_time
-        I_strain = [sum(strain.number) for strain in I_vec[t_idx]]
-        
-        I_tot = sum(I_strain)
+        if !isempty(I_vec[t_idx])
+            I_strain = [sum(strain.number) for strain in I_vec[t_idx]]
+            
+            I_tot = sum(I_strain)
 
-        if I_tot>0
-            q_strain = I_strain/I_tot
+            if I_tot>0
+                q_strain = I_strain/I_tot
 
-            #ev_pl[t_idx,:] .= 1.0.-q_strain
-            ev_pl[t_idx,q_strain.>0.01] .= 1.0            
+                #ev_pl[t_idx,:] .= 1.0.-q_strain
+                ev_pl[t_idx,q_strain.>0.01] .= 1.0            
+            end  
         end       
     end    
    
@@ -383,7 +385,7 @@ function work_list()
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
     μ_a = 0.2
-    μ_b = 0.37
+    μ_b = 0.30
     @show Δᵣ = (μ_b-μ_a)/sqrt(2*σ²)
     @show c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
     c = 0.5
@@ -399,7 +401,7 @@ function work_list()
     syspar = SystemParameters(μ_a,μ_b,β_aa_max,β_bb_max,β_ab_max,N_a,N_b,γ,γ,σ²,amplitude)
 
     #--Create stochastic simulation parameter-- 
-    Nₚ = 300 #Number of strains
+    Nₚ = 400 #Number of strains
     μₘ = 0.01 #Mutation rate <----
     σₘ = 0.0001 #0.0158 <----
     t₀ = 0.0 #<----
@@ -410,7 +412,7 @@ function work_list()
 
     n_traj=8
 
-    sub_folder_name = "test_15/"
+    sub_folder_name = "test_16_2/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/discrete_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/discrete_model/"*sub_folder_name
 

@@ -71,7 +71,7 @@ function generate_gif_pip()
         plot!([z_b,z_b],[z_start,z_end],xlims=[z_start,z_end],legend=false,c=:blue)
     end
 
-    gif(pip_gif,"./fig/AD_2_Species/pip_3.gif", fps = 5) 
+    gif(pip_gif,"./fig/AD_2_Species/R0_slight_dif.gif", fps = 5) 
 end
 
 generate_gif_pip()
