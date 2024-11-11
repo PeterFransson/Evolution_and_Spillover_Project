@@ -45,4 +45,29 @@ function plot_list()
 
     strats = singular_strategies(syspar,option)
 end
-plot_list()
+#plot_list()
+
+function draw_PIP(img_file_path::String,syspar_file_path::String)
+    syspar = JLD2.load(syspar_file_path,"syspar")
+
+    Nₚ = 2000
+    z_start, z_end = syspar.z_a-0.02,syspar.z_b+0.02
+
+    #Initial values    
+    I_a₀ = 1  
+    S₀_a = syspar.N_a-I_a₀ 
+            
+    I_b₀ = 1
+    S₀_b = syspar.N_b-I_b₀  
+
+    t_start = 0
+    t_end = 8000
+    tspan = (t_start,t_end)
+
+    u₀ = [S₀_a I_a₀;S₀_b I_b₀]    
+
+    option = z_start,z_end,Nₚ,u₀,tspan     
+           
+    draw_PIP(img_file_path,syspar,option) 
+    return nothing
+end

@@ -27,9 +27,18 @@ function create_syspar(R₀_ratio::Real,Δᵣ::Real,c_ratio::Real)
 end 
 
 function strat_work_list()
-    R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
-    c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
-    Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+    #R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
+    #c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
+
+    n_R₀ = 30
+    n_c = 30
+    n_Δᵣ = 50 
+
+    R₀_ratio_vec = collect(range(1.0,stop=2.0,length=n_R₀))
+    c_ratio_vec = collect(range(0.05,stop=0.8,length=n_c))
+    Δᵣ_vec = collect(range(1.0,stop=3.0,length=n_Δᵣ))   
+
+    name_folder = "result_20240918_2"
     
     for i in eachindex(R₀_ratio_vec)
         for j in eachindex(Δᵣ_vec)
@@ -42,10 +51,14 @@ function strat_work_list()
 
                 (strats,R₀_bool) = get_singular_strategies(syspar,syspar.z_a-0.02,syspar.z_b+0.02) #R₀_bool true if there is a region with R₀<1
                 
-                JLD2.@save "./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2" strats R₀_bool syspar
+                JLD2.@save "./output/AD_2_Species/parameter_influence/"*name_folder*"/sample_R_$(i)_D_$(j)_C_$(k).jld2" strats R₀_bool syspar
             end            
-        end        
+        end 
+        
+        println("$(n_R₀*n_c*i)/$(n_R₀*n_c*n_Δᵣ)")
     end
+
+    JLD2.@save "./output/AD_2_Species/parameter_influence/"*name_folder*"/config.jld2" R₀_ratio_vec c_ratio_vec Δᵣ_vec
 
     return nothing
 end
@@ -55,30 +68,40 @@ function isequal(a::Tuple{Vector{SingularStrat},Bool},b::Tuple{Vector{SingularSt
 end
 
 function get_strat_types()
-    R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
-    c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
-    Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+    #R₀_ratio_vec = [1.0,1.1,1.4,1.5,2.0]#[1.3]#[1.0,1.5,2.0]
+    #c_ratio_vec = [0.8,0.6,0.3,0.2,0.1]#[0.8]#[0.8,0.6,0.2]
+    #Δᵣ_vec = collect(range(1.0,stop=3.0,length=30))   
+
+    name_folder = "result_20240918_2"
+    R₀_ratio_vec = JLD2.load("./output/AD_2_Species/parameter_influence/"*name_folder*"/config.jld2","R₀_ratio_vec") 
+    c_ratio_vec = JLD2.load("./output/AD_2_Species/parameter_influence/"*name_folder*"/config.jld2","c_ratio_vec") 
+    Δᵣ_vec = JLD2.load("./output/AD_2_Species/parameter_influence/"*name_folder*"/config.jld2","Δᵣ_vec") 
     
     strat_types = Tuple{Vector{SingularStrat},Bool}[]
+    ex_idx = Tuple{Integer,Integer,Integer}[] #Index to the first example
     
     for i in eachindex(R₀_ratio_vec)
         for j in eachindex(Δᵣ_vec)
             for k in eachindex(c_ratio_vec)
-                strats = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2","strats")
-                R₀_bool = JLD2.load("./output/AD_2_Species/parameter_influence/test/sample_R_$(i)_D_$(j)_C_$(k).jld2","R₀_bool")
+                strats = JLD2.load("./output/AD_2_Species/parameter_influence/"*name_folder*"/sample_R_$(i)_D_$(j)_C_$(k).jld2","strats")
+                R₀_bool = JLD2.load("./output/AD_2_Species/parameter_influence/"*name_folder*"/sample_R_$(i)_D_$(j)_C_$(k).jld2","R₀_bool")
                 
                 if isempty(strat_types)
                     push!(strat_types,(strats,R₀_bool))
+                    push!(ex_idx,(i,j,k))
                 end  
                 if !any(isequal.(strat_types,Ref((strats,R₀_bool)))) 
                     push!(strat_types,(strats,R₀_bool))
+                    push!(ex_idx,(i,j,k))
                 end         
             end
         end
     end
 
-    for strat in strat_types
-        println(strat)
+    for (idx,strat) in enumerate(strat_types)
+        print(strat)
+        print(" ")
+        println(ex_idx[idx])
     end
     
     return nothing
@@ -152,6 +175,12 @@ function find_type_transition()
 end
 
 #strat_work_list()
-#get_strat_types()
+get_strat_types()
 #check_single_strat_type()
-find_type_transition()
+#find_type_transition()
+
+#name_folder = "result_20240918"
+#i,j,k = 5,9,8
+#syspar_file_path = "./output/AD_2_Species/parameter_influence/"*name_folder*"/sample_R_$(i)_D_$(j)_C_$(k).jld2"
+#img_file_path = "./fig/AD_2_Species/parameter_influence/"*name_folder*"/sample_R_$(i)_D_$(j)_C_$(k).svg"
+#draw_PIP(img_file_path,syspar_file_path)
