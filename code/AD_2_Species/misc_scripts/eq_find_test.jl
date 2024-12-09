@@ -107,6 +107,9 @@ end
 function calc_discriminant(a,b,c,d)
     return b^2*c^2-4*a*c^3-4*b^3*d-27*a^2*d^2+18*a*b*c*d
 end
+function calc_discriminant_depressed_cubic(p,q)
+    return 4*p^3+27*q^2
+end
 
 function get_depressed_cubic_coef(a,b,c,d)
     p = (3*a*c-b^2)/(3*a^2)
@@ -123,9 +126,9 @@ function discriminant_test(p,q)
 end
 
 #Cardon's forumla: 
-#Finds the real root of the the Depressed cubic t^3+pt+q=0 
+#Finds the (only) real root of the the Depressed cubic t^3+pt+q=0 
 #where discriminant_test(p,q) is true 
-function cubic_sol(p,q)
+function cubic_sol_one_real(p,q)
     depressed_cubic_num = calc_depressed_cubic_num(p,q)
 
     u₁ = -q/2+sqrt(depressed_cubic_num)
@@ -133,47 +136,84 @@ function cubic_sol(p,q)
 
     return cbrt(u₁)+cbrt(u₂)
 end
+#Finds the three real distinct root of the the Depressed cubic t^3+pt+q=0 
+#where discriminant_test(p,q) is false
+function cubic_sol_three_real(p,q)
+    t₁ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3)
+    t₂ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3-2*π*1/3)
+    t₃ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3-2*π*2/3)
 
-#ax³+bx²+cx+d when (a,b,c,d) are real and 
-#the discriminant of the equation is <0 (i.e. one real root).
+    return (t₁,t₂,t₃)
+end
+#Finds all real roots of the depressed cubic t^3+pt+q=0
+function cubic_sol(p,q)
+    depressed_cubic_num = calc_depressed_cubic_num(p,q)
+    if depressed_cubic_num≈0
+        if p≈0
+            return 0
+        else
+            t = -3*q/(2*p)
+            return (3*q/p,t,t)            
+        end    
+    elseif depressed_cubic_num>0
+        return cubic_sol_one_real(p,q)
+    else
+        return cubic_sol_three_real(p,q)
+    end
+end
+
+#Finds all real solutions to ax³+bx²+cx+d=0 when (a,b,c,d) are real
 function cubic_sol(a,b,c,d)
     (p,q) = get_depressed_cubic_coef(a,b,c,d)
-    discriminant_test(p,q)||error("Discriminant>0, multiple real roots exisits")
-    t_sol = cubic_sol(p,q)
-    return t_sol-b/(3*a)
+    
+    t_sols = cubic_sol(p,q)
+    return t_sols.-b/(3*a)
 end
 
 #Function to find the equilibrium point for the two-species-one-pathogen system when the system R₀>0 and all 
 #parameters are >0
 function find_eq(strain,syspar::SystemParameters)
     (a,b,c,d) = get_poly_coeff(strain,syspar)
-    x_sol = cubic_sol(a,b,c,d)  
-    (x_min,x_max) = get_x_lims(strain,syspar)    
-    x_min<x_sol<x_max||error("Solution is not physically feasible")
-    (S₁,S₂) = calc_S(x_sol,strain,syspar)
+    x_sols = cubic_sol(a,b,c,d)  
+    (x_min,x_max) = get_x_lims(strain,syspar)
+
+    x_feasible = []
+    for x_sol in x_sols      
+        if x_min<x_sol<x_max
+            push!(x_feasible,x_sol)
+        end
+    end
+
+    length(x_feasible)==1||error("More then one or no feasable solution exist")
+
+    (S₁,S₂) = calc_S(x_feasible[1],strain,syspar)
 
     eq_point = EqPoint(S₁,S₂,syspar.N_a-S₁,syspar.N_b-S₂)
     return eq_point
 end
 
 
-function create_syspar(R₀_ratio::Real,Δᵣ::Real,c_ratio::Real)     
+function create_syspar(R₀_aa_max::Real,
+    γ::Real,
+    σ²::Real,
+    amplitude::Real,
+    μ_a::Real,
+    N_a::Integer,
+    N_b::Integer,
+    R₀_ratio::Real,
+    Δᵣ::Real,
+    c_ratio::Real)     
     #--Create system parameter-- 
 
-    #maximum intraspecific basic reproduction number
-    R₀_aa_max = 1.4
+    #maximum intraspecific basic reproduction number    
     R₀_bb_max = R₀_aa_max*R₀_ratio
 
-    γ = 0.1 #Recovery rate    
-    σ²,amplitude = 0.0025,1.0
-    μ_a = 0.2
     μ_b = μ_a+sqrt(2*σ²)*Δᵣ
     
     c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
     c = c_crit*c_ratio
         
-    N_a = 10^3
-    N_b = 10^3    
+      
             
     #Maximum intraspecific transmission rate
     β_aa_max = R₀_aa_max*γ
@@ -189,51 +229,57 @@ end
 function find_eq_test()
     #--Create system parameter-- 
 
+    R₀_aa_max = 1.4
+    γ = 0.1 #Recovery rate    
+    σ²,amplitude = 0.0025,1.0
+    μ_a = 0.2
+    N_a = 10^3
+    N_b = 10^3  
     R₀_ratio = 1.5
     Δᵣ = 1.2
     c_ratio = 0.2
-    strain = 0.23
-    
-    syspar = create_syspar(R₀_ratio,Δᵣ,c_ratio)
+    strain_ratio = 0.5
+        
+    syspar = create_syspar(R₀_aa_max,
+    γ,
+    σ²,
+    amplitude,
+    μ_a,
+    N_a,
+    N_b,
+    R₀_ratio,
+    Δᵣ,
+    c_ratio) 
+
+    strain = syspar.z_a+(syspar.z_b-syspar.z_a)*strain_ratio
+
+    @show check_system_matrix(strain,syspar)    
+
     println("x₂= $(syspar.z_b)")
 
     @show (x_min,x_max) = get_x_lim_par(strain,syspar)
     @show (x_min,x_max) = get_x_lims(strain,syspar)
-
     @show (a,b,c,d) = get_poly_coeff(strain,syspar)
 
     f(x) = a*x^3+b*x^2+c*x+d
 
     xVec = range(x_min,stop=x_max,length=200)
     detVec = [system_matrix_det_fun(x,strain,syspar) for x in xVec] 
-    polyVec = f.(xVec)
-
-    plot(xVec,detVec)
-    plot!(xVec,polyVec)
-
-    @show calc_disc(a,b,c,d)
-
-
-    x_val = -b/(3*a)
-
-    @show f(x_val)
-
-    Δ₀ = b^2-3*a*c
-    Δ₁ = 2*b^3-9*a*b*c+27*a^2*d
-
-    @show C = cbrt((Δ₁-sqrt(Δ₁^2-4*Δ₀^3))/2)
-
-    @show x_sol = -(b+C+Δ₀/C)/(3*a)
-    @show f(x_sol)    
+    polyVec = f.(xVec)    
    
+    plot(xVec,detVec)
+    plot!(xVec,polyVec)      
+       
     x_sol = bisection(x->system_matrix_det_fun(x,strain,syspar),x_min,x_max)
     @show x_sol
 
     x_sol = bisection(f,x_min,x_max)
     @show x_sol
+    
+    @show cubic_sol(a,b,c,d)
 
-    x_sol = cubic_sol(a,b,c,d)
-    @show x_sol 
+    #x_sol = cubic_sol(a,b,c,d)
+    #@show x_sol 
 
     #=
     (S₁,S₂) = calc_S(x_sol,strain,syspar)
@@ -245,7 +291,8 @@ function find_eq_test()
     @show R*I
     =#
 
-    #Initial values    
+    #Initial values 
+      
     I_a₀ = 1  
     S₀_a = syspar.N_a-I_a₀ 
          
@@ -265,8 +312,8 @@ function find_eq_test()
     @show eq_point = find_eq(strain,syspar)
     println("S₁=$(eq_point.S_a),S₂=$(eq_point.S_b)")
 
-    @time find_eq(u₀,tspan,(strain,syspar))
-    @time find_eq(strain,syspar)
+    #@time find_eq(u₀,tspan,(strain,syspar))
+    #@time find_eq(strain,syspar)    
 end
 
 find_eq_test()

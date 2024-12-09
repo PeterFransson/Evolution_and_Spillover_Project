@@ -166,6 +166,9 @@ function check_system_matrix(strain,S,syspar::SystemParameters)
     eigs = eigvals(R)
     return any(real.(eigs).>0)
 end
+function check_system_matrix(strain,syspar::SystemParameters)        
+    return check_system_matrix(strain,(syspar.N_a,syspar.N_b),syspar)    
+end
 
 #System dynamics for the two-species-one-pathogen system
 function epievodyn_simple_one_strain!(du,u,p,t)
