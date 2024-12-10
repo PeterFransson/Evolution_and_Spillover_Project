@@ -16,7 +16,7 @@ function get_system_par(strain,S,syspar::SystemParameters)
     return (S_a,S_b,τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
 end
 
-function get_system_par_alt(strain,syspar::SystemParameters)
+function SysPar2PIPPar(strain,syspar::SystemParameters)
     Δx₁z = (syspar.z_a-strain)/sqrt(2*syspar.σ²)
     Δx₂z = (syspar.z_b-strain)/sqrt(2*syspar.σ²)
     R₀₁ = syspar.τ_max*syspar.c_aa/syspar.γ_a
@@ -42,35 +42,10 @@ function system_matrix_det(strain,S,syspar::SystemParameters)
     return det
 end
 
-function calc_S(x,strain,syspar::SystemParameters)
-    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = get_system_par_alt(strain,syspar)
-
-    S₁ = N₁/(1-x*R₀₁₂*exp(-Δx₁z^2)/N₂)
-    S₂ = N₂-x*(S₁*R₀₁*exp(-Δx₁z^2)/N₁-1)
-    return (S₁,S₂)
-end
-function system_matrix_det_fun(x,strain,syspar::SystemParameters)
-    
-    det = system_matrix_det(strain,calc_S(x,strain,syspar),syspar)
-    return det
-end
-
-
-function get_x_lim_par(strain,syspar::SystemParameters)
-    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = get_system_par_alt(strain,syspar)
-    temp = N₂*exp(Δx₁z^2)/R₀₁₂
-    temp₂ = 1-R₀₁₂*exp(-Δx₁z^2)-R₀₁*exp(-Δx₁z^2)
-    x_min = temp*(temp₂-sqrt(temp₂^2+4*R₀₁₂*exp(-Δx₁z^2)))/2
-    x_max = temp*(1-R₀₁*exp(-Δx₁z^2))
-    return (x_min,x_max)
-end
-function get_x_lims(strain,syspar::SystemParameters)
-    (x_min,x_max) = get_x_lim_par(strain,syspar::SystemParameters)
-    return (x_min,min(0,x_max))
-end
-
+#Get coefficients for the system cubic polynomial f(x) = ax³+bx²+cx+d. 
+#The roots of f(x) are equilibrium points candidates
 function get_poly_coeff(strain,syspar::SystemParameters)
-    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = get_system_par_alt(strain,syspar)
+    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
     
     expΔx₁z = exp(-Δx₁z^2)
     expΔx₂z = exp(-Δx₂z^2)    
@@ -103,6 +78,35 @@ function get_poly_coeff(strain,syspar::SystemParameters)
     return (a,b,c,d)
 end
 
+#Get limits for feasable solutions in terms of the system cubic polynomial variable x
+function get_x_lim_vals(strain,syspar::SystemParameters)
+    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
+    temp = N₂*exp(Δx₁z^2)/R₀₁₂
+    temp₂ = 1-R₀₁₂*exp(-Δx₁z^2)-R₀₁*exp(-Δx₁z^2)
+    x_min = temp*(temp₂-sqrt(temp₂^2+4*R₀₁₂*exp(-Δx₁z^2)))/2
+    x_max = temp*(1-R₀₁*exp(-Δx₁z^2))
+    return (x_min,x_max)
+end
+function get_x_lims(strain,syspar::SystemParameters)
+    (x_min,x_max) = get_x_lim_vals(strain,syspar::SystemParameters)
+    return (x_min,min(0,x_max))
+end
+
+#Calcualte the number of susceptibles (S₁,S₂) from the system cubic polynomial variable x
+function calc_S(x,strain,syspar::SystemParameters)
+    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
+
+    S₁ = N₁/(1-x*R₀₁₂*exp(-Δx₁z^2)/N₂)
+    S₂ = N₂-x*(S₁*R₀₁*exp(-Δx₁z^2)/N₁-1)
+    return (S₁,S₂)
+end
+
+function system_matrix_det_fun(x,strain,syspar::SystemParameters)
+    
+    det = system_matrix_det(strain,calc_S(x,strain,syspar),syspar)
+    return det
+end
+
 #Function to calculate the discriminant of a third-degree polynomial ax³+bx²+cx+d
 function calc_discriminant(a,b,c,d)
     return b^2*c^2-4*a*c^3-4*b^3*d-27*a^2*d^2+18*a*b*c*d
@@ -117,15 +121,16 @@ function get_depressed_cubic_coef(a,b,c,d)
     return (p,q)
 end
 
+#Number used to calcualted the real solution to a depressed cubic equation when calc_discriminant_depressed_cubic>0  
 function calc_depressed_cubic_num(p,q)
     return q^2/4+p^3/27
 end
 
 function discriminant_test(p,q)
-    return calc_depressed_cubic_num(p,q)>=0 #implies that the discriminant of the equation is negative
+    return calc_depressed_cubic_num(p,q)>0 #implies that the discriminant of the equation is negative (one real solution)
 end
 
-#Cardon's forumla: 
+#Cardon's formula: 
 #Finds the (only) real root of the the Depressed cubic t^3+pt+q=0 
 #where discriminant_test(p,q) is true 
 function cubic_sol_one_real(p,q)
@@ -137,7 +142,7 @@ function cubic_sol_one_real(p,q)
     return cbrt(u₁)+cbrt(u₂)
 end
 #Finds the three real distinct root of the the Depressed cubic t^3+pt+q=0 
-#where discriminant_test(p,q) is false
+#where discriminant_test(p,q) is false (François Viète)
 function cubic_sol_three_real(p,q)
     t₁ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3)
     t₂ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3-2*π*1/3)
@@ -145,15 +150,15 @@ function cubic_sol_three_real(p,q)
 
     return (t₁,t₂,t₃)
 end
-#Finds all real roots of the depressed cubic t^3+pt+q=0
+#Finds all distinct real roots of the depressed cubic t^3+pt+q=0
 function cubic_sol(p,q)
     depressed_cubic_num = calc_depressed_cubic_num(p,q)
     if depressed_cubic_num≈0
-        if p≈0
+        if p≈0 #One Triple root
             return 0
-        else
+        else #One double root
             t = -3*q/(2*p)
-            return (3*q/p,t,t)            
+            return (3*q/p,t)            
         end    
     elseif depressed_cubic_num>0
         return cubic_sol_one_real(p,q)
@@ -162,7 +167,7 @@ function cubic_sol(p,q)
     end
 end
 
-#Finds all real solutions to ax³+bx²+cx+d=0 when (a,b,c,d) are real
+#Finds all distinct real solutions to ax³+bx²+cx+d=0 when (a,b,c,d) are real
 function cubic_sol(a,b,c,d)
     (p,q) = get_depressed_cubic_coef(a,b,c,d)
     
@@ -184,7 +189,12 @@ function find_eq(strain,syspar::SystemParameters)
         end
     end
 
-    length(x_feasible)==1||error("More then one or no feasable solution exist")
+    length(x_feasible)==1||(println(x_sols);
+    println(x_feasible);
+    println("a=$(a),b=$(b),c=$(c),d=$(d)");
+    println("Strain=$(strain)");
+    println(syspar);
+    error("More then one or no feasable solution exist"))
 
     (S₁,S₂) = calc_S(x_feasible[1],strain,syspar)
 
@@ -229,13 +239,13 @@ end
 function find_eq_test()
     #--Create system parameter-- 
 
-    R₀_aa_max = 1.4
+    R₀_aa_max = 2.0
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
     μ_a = 0.2
     N_a = 10^3
     N_b = 10^3  
-    R₀_ratio = 1.5
+    R₀_ratio = 0.5
     Δᵣ = 1.2
     c_ratio = 0.2
     strain_ratio = 0.5
@@ -257,7 +267,7 @@ function find_eq_test()
 
     println("x₂= $(syspar.z_b)")
 
-    @show (x_min,x_max) = get_x_lim_par(strain,syspar)
+    @show (x_min,x_max) = get_x_lim_vals(strain,syspar)
     @show (x_min,x_max) = get_x_lims(strain,syspar)
     @show (a,b,c,d) = get_poly_coeff(strain,syspar)
 
@@ -316,4 +326,45 @@ function find_eq_test()
     #@time find_eq(strain,syspar)    
 end
 
+
+function generate_system_par()
+    #--Create system parameter--     
+    γ = 0.1 #Recovery rate    
+    σ²,amplitude = 0.0025,1.0
+    μ_a = 0.2
+
+
+    N_a = 10^3
+    N_b = 10^3  
+
+    eq_eval = 0
+    for i in 1:10^6
+        R₀_aa_max = 1.0+2.0*rand()
+        R₀_ratio = 3.0*rand() #R₀_ratio∈(0,∞)
+        Δᵣ = 0.5+2.5*rand() #Δᵣ∈(0,∞)
+        c_ratio = 0.01+0.99*rand() #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
+        strain_ratio = rand() #strain_ratio∈(0,1)
+
+        syspar = create_syspar(R₀_aa_max,
+        γ,
+        σ²,
+        amplitude,
+        μ_a,
+        N_a,
+        N_b,
+        R₀_ratio,
+        Δᵣ,
+        c_ratio) 
+
+        strain = syspar.z_a+(syspar.z_b-syspar.z_a)*strain_ratio
+
+        if check_system_matrix(strain,syspar)  
+            eq_eval += 1 
+            find_eq(strain,syspar)            
+        end 
+    end
+    @show eq_eval
+end
+
 find_eq_test()
+#generate_system_par()
