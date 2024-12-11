@@ -158,9 +158,12 @@ end
 
 function get_system_R₀(strain::Real,syspar::SystemParameters)
     (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
+    
+    expΔx₁z = exp(-Δx₁z^2)
+    expΔx₂z = exp(-Δx₂z^2)
 
-    tr = R₀₁*Δx₁z+R₀₂*Δx₂z
-    det = (R₀₁*R₀₂-R₀₁₂*R₀₁₂)*Δx₁z*Δx₂z
+    tr = R₀₁*expΔx₁z+R₀₂*expΔx₂z
+    det = (R₀₁*R₀₂-R₀₁₂*R₀₁₂)*expΔx₁z*expΔx₂z
 
     return (tr+sqrt(tr^2-4*det))/2
 end
@@ -180,7 +183,7 @@ function PIP_gen_test()
     N_b = 10^3    
     R₀_aa_max = 1.4        
     R₀_ratio = 1.0 #R₀_ratio∈(0,∞) 
-    Δᵣ = 2.0 #Δᵣ∈(0,∞) Distance between species (Δᵣ 1 = sqrt(2)*σ)
+    Δᵣ = 1.0 #Δᵣ∈(0,∞) Distance between species (Δᵣ 1 = sqrt(2)*σ)
     c_ratio = 0.2 #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
     
     syspar = create_syspar(R₀_aa_max,
@@ -214,6 +217,9 @@ function PIP_gen_test()
 
     plot(strain_x_vec,f.(strain_x_vec))
     plot!([0.0,1.0],[0.0,0.0])=#
+
+    g(x) = R₀(x)-1.01
+    @show find_zeros(g, 0.0,1.0)
 
     plot(strain_x_vec,R₀.(strain_x_vec))
     plot!([0.0,1.0],[1.0,1.0])
