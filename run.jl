@@ -1,5 +1,5 @@
 using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
-using LinearAlgebra, NLsolve
+using LinearAlgebra, NLsolve, Roots
 using DataFrames, CSV, JLD2
 
 include("code/auxiliary_funs/bisection.jl")
@@ -17,6 +17,7 @@ include("code/auxiliary_funs/bisection.jl")
 #include("./code/AD_example_1/AD_hill_climb.jl")
 #include("./code/AD_example_1/PIP_code_alt.jl")
 #include("./code/AD_example_1/within_host_PIP_code.jl")
+include("code/solve_cubic_code/solve_cubic.jl")
 include("code/AD_2_Species/code.jl")
 include("code/AD_2_Species/draw_PIP.jl")
 #include("code/AD_2_Species/analysis.jl")
@@ -33,4 +34,5 @@ include("code/AD_2_Species/draw_PIP.jl")
 #include("code/AD_2_Species//misc_scripts/generate_gif_pip.jl")
 #include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/model.jl")
 #include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/model_v2.jl")
-include("code/AD_2_Species/misc_scripts/eq_find_test.jl")
+#include("code/AD_2_Species/misc_scripts/eq_find_test.jl")
+include("code/AD_2_Species/PIP_parameter_check/PIP_parameter_check.jl")
