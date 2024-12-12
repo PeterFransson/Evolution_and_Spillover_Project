@@ -1,5 +1,5 @@
 using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
-using LinearAlgebra, NLsolve, Roots
+using LinearAlgebra, NLsolve, Roots, Sobol
 using DataFrames, CSV, JLD2
 
 include("code/auxiliary_funs/bisection.jl")

@@ -173,56 +173,127 @@ function f_fun(strain,syspar::SystemParameters)
     return calculate_select_grad(strain,(eq_point.S_a,eq_point.S_b),syspar) 
 end
 
-function PIP_gen_test()
+function classify_singular_strat(sing_strat::Real,syspar::SystemParameters;h::Real=10^-4)
+    conv_check = check_convergence(sing_strat,syspar;h=h)    
+    evo_check = find_sec_inv_fit(sing_strat,syspar)
+    return SingularStrat(sing_strat,conv_check,evo_check<0)
+end
+
+function PIP_gen_n_classify()
+
+    #Setup SobolSeq
+    dim = 6 #number of parameters
+    s = SobolSeq(dim)
+
     #--Create system parameter--     
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
     μ_a = 0.2
 
-    N_a = 10^3
-    N_b = 10^3    
-    R₀_aa_max = 1.4        
-    R₀_ratio = 1.0 #R₀_ratio∈(0,∞) 
-    Δᵣ = 1.0 #Δᵣ∈(0,∞) Distance between species (Δᵣ 1 = sqrt(2)*σ)
-    c_ratio = 0.2 #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
+    folder_name = "./output/AD_2_Species/PIP_par_classify/"
+    sub_folder_name = "Sobol_2024_12_12/"
+    file_name = "Sample"
+    name = folder_name*sub_folder_name*file_name
+
+    isdir(folder_name*sub_folder_name)||mkdir(folder_name*sub_folder_name)
+        
+    N = 1
+    for i in 1:10^4        
+        x = next!(s)
+
+        N_a = trunc(Int,10^2+x[1]*(10^4-10^2)) #rand(10^2:10^4)
+        N_b = trunc(Int,10^2+x[2]*(10^4-10^2)) #rand(10^2:10^4)   
+        R₀_aa_max = 1.0+x[3]*(4.0-1.0) #1.0+3.0*rand() 
+        R₀_bb_max = 0.5+x[4]*(6.0-0.5)#0.5+3.5*rand()     
+        R₀_ratio = R₀_bb_max/R₀_aa_max #R₀_ratio∈(0,∞) 
+        Δᵣ = 0.1+x[5]*(3.0-0.1)#0.1+2.9*rand() #Δᵣ∈(0,∞) Distance between species (1 Δᵣ = sqrt(2)*σ)
+        c_ratio = 0.01+x[6]*(0.8-0.01)#0.01+0.79*rand() #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
+        
+        syspar = create_syspar(R₀_aa_max,
+        γ,
+        σ²,
+        amplitude,
+        μ_a,
+        N_a,
+        N_b,
+        R₀_ratio,
+        Δᵣ,
+        c_ratio)    
+
+        x2strain(x) = syspar.z_a+(syspar.z_b-syspar.z_a)*x
+        f(x) =  f_fun(x2strain(x),syspar)
+        R₀(x) = get_system_R₀(x2strain(x),syspar)
+        g(x) = R₀(x)-1.01
+
+        R₀_zeros_x = find_zeros(g, 0.0,1.0)
+
+        if isempty(R₀_zeros_x)||(length(R₀_zeros_x) == 2&&minimum(R₀_zeros_x)>0&&maximum(R₀_zeros_x)<1)
+            if isempty(R₀_zeros_x) 
+                sing_strats_x = find_zeros(f, 0.0,1.0)
+                R₀_bool = true #True if system R₀>1 for PIP
+            else
+                sing_strats_x = find_zeros(f, 0.0,minimum(R₀_zeros_x))
+                sing_strats_x_r = find_zeros(f, maximum(R₀_zeros_x),1.0)
+                append!(sing_strats_x,sing_strats_x_r)
+                R₀_bool = false #True if system R₀>1 for PIP
+            end
+            
+
+            if isempty(sing_strats_x)==false
+                sing_strats = x2strain.(sing_strats_x)
+                strats = [classify_singular_strat(sing_strat,syspar) for sing_strat in sing_strats]    
+                
+                JLD2.@save name*"_$(N).jld2" strats R₀_bool syspar
+
+                N += 1 
+            end
+        end 
+    end   
+end
+
+function is_in_strats(col::Vector{Tuple{Vector{SingularStrat},Bool}},item::Tuple{Vector{SingularStrat},Bool})
+    for item_temp in col
+        if item_temp[1]==item[1]&&item_temp[2]==item[2]
+            return true
+        end
+    end
+    return false
+end
+
+function find_unique_strats()
+    folder_name = "./output/AD_2_Species/PIP_par_classify/"
+    sub_folder_name = "Sobol_2024_12_12/"
     
-    syspar = create_syspar(R₀_aa_max,
-    γ,
-    σ²,
-    amplitude,
-    μ_a,
-    N_a,
-    N_b,
-    R₀_ratio,
-    Δᵣ,
-    c_ratio) 
+    file_names = readdir(folder_name*sub_folder_name)
 
-    #strain = syspar.z_a+(syspar.z_b-syspar.z_a)*strain_ratio
+    unique_strats = Tuple{Vector{SingularStrat},Bool}[]
 
-    strain_x_vec = range(0.0,stop=1.0,length=200)
+    for file_name in file_names
+        name = folder_name*sub_folder_name*file_name
 
-    f(x) =  f_fun(syspar.z_a+(syspar.z_b-syspar.z_a)*x,syspar)
-    R₀(x) = get_system_R₀(syspar.z_a+(syspar.z_b-syspar.z_a)*x,syspar)
+        strats = JLD2.load(name,"strats")
+        R₀_bool = JLD2.load(name,"R₀_bool")
 
-    #=
-    @show singular_strat = find_zeros(f, 0.0,1.0)
-
-    if length(singular_strat)>0
-        for x_strain in singular_strat
-            strain = syspar.z_a+(syspar.z_b-syspar.z_a)*x_strain
-            @show check_convergence(strain,syspar)
-            @show find_sec_inv_fit(strain,syspar)  
+        if isempty(unique_strats)
+            push!(unique_strats,(strats,R₀_bool))
+        else
+            if is_in_strats(unique_strats,(strats,R₀_bool))==false
+                push!(unique_strats,(strats,R₀_bool))
+            end
         end
     end
 
-    plot(strain_x_vec,f.(strain_x_vec))
-    plot!([0.0,1.0],[0.0,0.0])=#
-
-    g(x) = R₀(x)-1.01
-    @show find_zeros(g, 0.0,1.0)
-
-    plot(strain_x_vec,R₀.(strain_x_vec))
-    plot!([0.0,1.0],[1.0,1.0])
+    println("Unique PIPs")
+    for (i,strat) in enumerate(unique_strats)
+        n_sing_strats = length(strat[1])
+        println("PIP type $(i): N sing strat:$(n_sing_strats), R₀>1:$(strat[2])")
+        println("--Number of singular strategies:$(n_sing_strats)")
+        for strat in strat[1]
+            println("---(ESS:$(strat.evo_stable),Conv:$(strat.conv_stable))")
+        end
+        println("-----")
+    end
 end
 
-PIP_gen_test()
+#PIP_gen_n_classify()
+find_unique_strats()
