@@ -1,6 +1,6 @@
 #Find and categories singular strategies for PIP parameters
 
-#-Code to find equilibrium points for the two-species-one-strain system
+#-Start: Code to find equilibrium points for the two-species-one-strain system
 
 function SysPar2PIPPar(strain,syspar::SystemParameters)
     Δx₁z = (syspar.z_a-strain)/sqrt(2*syspar.σ²)
@@ -49,7 +49,7 @@ function get_poly_coeff(strain,syspar::SystemParameters)
     return (a,b,c,d)
 end
 
-#Get limits for feasable solutions in terms of the system cubic polynomial variable x
+#Get limits for feasible solutions in terms of the system cubic polynomial variable x
 function get_x_lim_vals(strain,syspar::SystemParameters)
     (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
     temp = N₂*exp(Δx₁z^2)/R₀₁₂
@@ -86,7 +86,7 @@ function find_eq(strain,syspar::SystemParameters)
         end
     end
 
-    length(x_feasible)==1||error("More then one or no feasable solution exist")
+    length(x_feasible)==1||error("More then one or no feasible solution exists")
 
     (S₁,S₂) = calc_S(x_feasible[1],strain,syspar)
 
@@ -168,46 +168,62 @@ function get_system_R₀(strain::Real,syspar::SystemParameters)
     return (tr+sqrt(tr^2-4*det))/2
 end
 
+#Calculate the selection gradiant Sᵣ´(m=r) 
 function f_fun(strain,syspar::SystemParameters)
     eq_point = find_eq(strain,syspar)
     return calculate_select_grad(strain,(eq_point.S_a,eq_point.S_b),syspar) 
 end
 
-function classify_singular_strat(sing_strat::Real,syspar::SystemParameters;h::Real=10^-4)
+function classify_singular_strat(sing_strat::Real,syspar::SystemParameters;h::Real=10^-4,no_pts::Integer=100)
     conv_check = check_convergence(sing_strat,syspar;h=h)    
     evo_check = find_sec_inv_fit(sing_strat,syspar)
-    return SingularStrat(sing_strat,conv_check,evo_check<0)
+
+    global_check = false #True if evolutionarily stable point is a global fitness maximum
+    if evo_check<0
+        eq_point = find_eq(sing_strat,syspar) #Find endemic state of the resident strain
+        f_temp(x) = calculate_inv_fit(syspar.z_a+(syspar.z_b-syspar.z_a)*x,(eq_point.S_a,eq_point.S_b),syspar) 
+        x_sol = find_zeros(f_temp,0.0,1.0,no_pts=no_pts)
+
+        if isempty(x_sol)||length(x_sol)<2
+            global_check = true
+        end
+    end
+    
+    return SingularStrat(sing_strat,conv_check,evo_check<0,global_check)
 end
 
 function PIP_gen_n_classify()
-
+    no_pts = 100 #Number points used to determine initial bracket intervals in find_zeros
+    R₀_crit = 1.01
+    n_samples = 10^2 #Number of Sobol samples in the parameter space
+    
     #Setup SobolSeq
-    dim = 6 #number of parameters
+    dim = 6 #number of parameters 
     s = SobolSeq(dim)
 
     #--Create system parameter--     
     γ = 0.1 #Recovery rate    
-    σ²,amplitude = 0.0025,1.0
-    μ_a = 0.2
+    σ²,amplitude = 0.0025,1.0 
+    μ_a = 0.2 
 
     folder_name = "./output/AD_2_Species/PIP_par_classify/"
-    sub_folder_name = "Sobol_2024_12_12/"
+    sub_folder_name = "Sobol_2025_05_12/"
     file_name = "Sample"
     name = folder_name*sub_folder_name*file_name
 
     isdir(folder_name*sub_folder_name)||mkdir(folder_name*sub_folder_name)
         
     N = 1
-    for i in 1:10^4        
+    for i in 1:n_samples        
         x = next!(s)
 
-        N_a = trunc(Int,10^2+x[1]*(10^4-10^2)) #rand(10^2:10^4)
-        N_b = trunc(Int,10^2+x[2]*(10^4-10^2)) #rand(10^2:10^4)   
-        R₀_aa_max = 1.0+x[3]*(4.0-1.0) #1.0+3.0*rand() 
-        R₀_bb_max = 0.5+x[4]*(6.0-0.5)#0.5+3.5*rand()     
+        N_a = trunc(Int,10^2+x[1]*(10^4-10^2))
+        N_b = trunc(Int,10^2+x[2]*(10^4-10^2))   
+        R₀_aa_max = 1.0+x[3]*(4.0-1.0) 
+        R₀_bb_max = 0.5+x[4]*(6.0-0.5)     
         R₀_ratio = R₀_bb_max/R₀_aa_max #R₀_ratio∈(0,∞) 
-        Δᵣ = 0.1+x[5]*(3.0-0.1)#0.1+2.9*rand() #Δᵣ∈(0,∞) Distance between species (1 Δᵣ = sqrt(2)*σ)
-        c_ratio = 0.01+x[6]*(0.8-0.01)#0.01+0.79*rand() #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
+        Δᵣ = 0.1+x[5]*(3.0-0.1) #Δᵣ∈(0,∞) Distance between species (1 Δᵣ = sqrt(2)*σ)
+        c_ratio = 0.01+x[6]*(0.8-0.01)#c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
         
         syspar = create_syspar(R₀_aa_max,
         γ,
@@ -223,19 +239,19 @@ function PIP_gen_n_classify()
         x2strain(x) = syspar.z_a+(syspar.z_b-syspar.z_a)*x
         f(x) =  f_fun(x2strain(x),syspar)
         R₀(x) = get_system_R₀(x2strain(x),syspar)
-        g(x) = R₀(x)-1.01
+        g(x) = R₀(x)-R₀_crit
 
-        R₀_zeros_x = find_zeros(g, 0.0,1.0)
+        R₀_zeros_x = find_zeros(g, 0.0,1.0,no_pts=no_pts) #Find points where R₀=R₀_crit
 
         if isempty(R₀_zeros_x)||(length(R₀_zeros_x) == 2&&minimum(R₀_zeros_x)>0&&maximum(R₀_zeros_x)<1)
-            if isempty(R₀_zeros_x) 
-                sing_strats_x = find_zeros(f, 0.0,1.0)
-                R₀_bool = true #True if system R₀>1 for PIP
-            else
-                sing_strats_x = find_zeros(f, 0.0,minimum(R₀_zeros_x))
-                sing_strats_x_r = find_zeros(f, maximum(R₀_zeros_x),1.0)
+            if isempty(R₀_zeros_x) #System R₀>1 for all strains
+                sing_strats_x = find_zeros(f, 0.0,1.0,no_pts=no_pts) #Find all evolutionary singular strategies 
+                R₀_bool = true #True if system R₀>1 all strains
+            else #System R₀<1 in a interval [minimum(R₀_zeros_x),maximum(R₀_zeros_x)]
+                sing_strats_x = find_zeros(f, 0.0,minimum(R₀_zeros_x),no_pts=no_pts) #Find all evolutionary singular strategies  in the interval [0,minimum(R₀_zeros_x)]
+                sing_strats_x_r = find_zeros(f, maximum(R₀_zeros_x),1.0,no_pts=no_pts) #Find all evolutionary singular strategies  in the interval [maximum(R₀_zeros_x),1.0]
                 append!(sing_strats_x,sing_strats_x_r)
-                R₀_bool = false #True if system R₀>1 for PIP
+                R₀_bool = false #True if system R₀<1 for some strains
             end
             
 
@@ -262,7 +278,7 @@ end
 
 function find_unique_strats()
     folder_name = "./output/AD_2_Species/PIP_par_classify/"
-    sub_folder_name = "Sobol_2024_12_12/"
+    sub_folder_name = "Sobol_2025_05_12/"
     
     file_names = readdir(folder_name*sub_folder_name)
 
@@ -289,11 +305,11 @@ function find_unique_strats()
         println("PIP type $(i): N sing strat:$(n_sing_strats), R₀>1:$(strat[2])")
         println("--Number of singular strategies:$(n_sing_strats)")
         for strat in strat[1]
-            println("---(ESS:$(strat.evo_stable),Conv:$(strat.conv_stable))")
+            println("---(ESS:$(strat.evo_stable),Conv:$(strat.conv_stable)),Global:$(strat.global_evo))")
         end
         println("-----")
     end
 end
 
-#PIP_gen_n_classify()
+PIP_gen_n_classify()
 find_unique_strats()

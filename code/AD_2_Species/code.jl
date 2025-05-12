@@ -45,10 +45,11 @@ struct SingularStrat
     strategy::Real #Position in compability space of evolutionarily singular strategy
     conv_stable::Bool #True if the strategy is convergence stable
     evo_stable::Bool #True if the strategy is evolutionarily stable
+    global_evo::Bool #True if the strategy is evolutionarily stable and a global fitness maximum
 end
 
 function Base.:(==)(a::SingularStrat,b::SingularStrat)
-    return a.conv_stable==b.conv_stable && a.evo_stable==b.evo_stable
+    return a.conv_stable==b.conv_stable && a.evo_stable==b.evo_stable && a.global_evo==b.global_evo
 end
 function Base.:(==)(a::Vector{SingularStrat},b::Vector{SingularStrat})
     return length(a)==length(b) && prod(a .== b)==1    
@@ -59,6 +60,32 @@ normal_d(x,μ,σ²) = exp(-(x-μ)^2/(σ²*2))/sqrt(2*π*σ²)
 τ_fun(x,μ,σ²,amplitude) = amplitude*τ_fun(x,μ,σ²)
 τ_prime_fun(x,μ,σ²,amplitude) = -amplitude*exp(-(x-μ)^2/(σ²*2))*2*(x-μ)/(σ²*2) #derivative of τ_fun
 τ_d_prime_fun(x,μ,σ²,amplitude) = amplitude*exp(-(x-μ)^2/(σ²*2))*4*(x-μ)^2/(σ²*2)^2-amplitude*exp(-(x-μ)^2/(σ²*2))*2/(σ²*2) #Second order derivative of τ_fun
+
+#Calculate invasion fitness
+function calculate_inv_fit(S_a,S_b,τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+    r_11 = S_a*τ_a*c_aa/N_a-γ_a
+    r_12 = S_a*τ_a*c_ab/N_b
+    r_21 = S_b*τ_b*c_ab/N_a
+    r_22 = S_b*τ_b*c_bb/N_b-γ_b
+
+    tr = r_11+r_22
+    det = r_11*r_22-r_12*r_21
+
+    return (tr+sqrt(tr^2-4*det))/2
+end
+function calculate_inv_fit(mutant_strain::Real,resident_S,syspar::SystemParameters)  
+    τ_a = τ_fun(mutant_strain,syspar.z_a,syspar.σ²,syspar.τ_max)
+    τ_b = τ_fun(mutant_strain,syspar.z_b,syspar.σ²,syspar.τ_max)
+    
+
+    c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b, = syspar.c_aa,syspar.c_bb,syspar.c_ab,syspar.γ_a,syspar.γ_b,syspar.N_a,syspar.N_b
+
+    S_a,S_b = resident_S[1],resident_S[2] #Susceptibles
+
+    λ_max = calculate_inv_fit(S_a,S_b,τ_a,τ_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
+    return λ_max
+end
+
 
 #Calculate Selection gradients (first order derivative of invasion fitness)
 function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
@@ -183,7 +210,7 @@ function epievodyn_simple_one_strain!(du,u,p,t)
     du[1:2,2] = R*I
 end
 
-#Function to find the equilibrium point for the two-species-one-pathogen system
+#Function to find the equilibrium point for the two-species-one-pathogen system (OLD To be replaced)
 function find_eq(u₀,tspan,p)
     t_end = tspan[2] 
     prob = ODEProblem(epievodyn_simple_one_strain!,u₀,tspan,p) #Setup the ODE problem
@@ -213,7 +240,7 @@ function epievodyn_simple_2_strain!(du,u,p,t)
     du[1:2,3] = R_2*I_2 
 end
 
-#Function to find the equilibrium point for the two-species-two-pathogen system
+#Function to find the equilibrium point for the two-species-two-pathogen system (NEED TO UPDATE)
 function find_eq_2_strain(u₀,tspan,p)
     t_end = tspan[2] 
     prob = ODEProblem(epievodyn_simple_2_strain!,u₀,tspan,p) #Setup the ODE problem
