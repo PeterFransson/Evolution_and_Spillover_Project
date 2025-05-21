@@ -66,7 +66,8 @@ function draw_PIP(img_file_path::String,syspar_file_path::String)
 
     u₀ = [S₀_a I_a₀;S₀_b I_b₀]    
 
-    option = z_start,z_end,Nₚ,u₀,tspan     
+    #option = z_start,z_end,Nₚ,u₀,tspan     
+    option = z_start,z_end,Nₚ
            
     draw_PIP(img_file_path,syspar,option) 
     return nothing

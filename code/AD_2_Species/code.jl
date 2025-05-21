@@ -224,6 +224,102 @@ function find_eq(u₀,tspan,p)
     return eq_point
 end
 
+#-Start: Code and functions to find equilibrium points for the two-species-one-strain system
+
+function SysPar2PIPPar(strain,syspar::SystemParameters)
+    Δx₁z = (syspar.z_a-strain)/sqrt(2*syspar.σ²)
+    Δx₂z = (syspar.z_b-strain)/sqrt(2*syspar.σ²)
+    R₀₁ = syspar.τ_max*syspar.c_aa/syspar.γ_a
+    R₀₂ = syspar.τ_max*syspar.c_bb/syspar.γ_b
+    R₀₁₂ = syspar.τ_max*syspar.c_ab/syspar.γ_a #We assume syspar.γ_a=syspar.γ_b
+    N₁ = syspar.N_a
+    N₂ = syspar.N_b
+    return (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂)
+end
+
+#Get coefficients for the system cubic polynomial f(x) = ax³+bx²+cx+d. 
+#The roots of f(x) are equilibrium point candidates
+function get_poly_coeff(strain,syspar::SystemParameters)
+    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
+    
+    expΔx₁z = exp(-Δx₁z^2)
+    expΔx₂z = exp(-Δx₂z^2)    
+
+    a_eq = (R₀₁*R₀₂-R₀₁₂*R₀₁₂)*expΔx₁z*expΔx₂z/(N₁*N₂)
+    b_eq = -R₀₁*expΔx₁z/N₁
+    c_eq = -R₀₂*expΔx₂z/N₂
+
+    a_s1 = -N₁*R₀₁₂*expΔx₁z/N₂
+    b_s1 = N₁
+
+    a_1 = (R₀₁₂*expΔx₁z/N₂)^2 
+    b_1 = -2*R₀₁₂*expΔx₁z/N₂
+    c_1 = 1
+
+    a_s1s2 = -N₁*R₀₁₂*expΔx₁z/N₂
+    b_s1s2 = N₁*(1-R₀₁*expΔx₁z-R₀₁₂*expΔx₁z) 
+    c_s1s2 = N₁*N₂
+
+    a_s2 = (R₀₁₂*expΔx₁z/N₂)^2 
+    b_s2 = -R₀₁₂*expΔx₁z*(2-R₀₁*expΔx₁z-R₀₁₂*expΔx₁z)/N₂
+    c_s2 = (1-R₀₁*expΔx₁z-2*R₀₁₂*expΔx₁z)
+    d_s2 = N₂
+
+    a = (a_s2*c_eq)
+    b = (a_s1s2*a_eq+b_s2*c_eq+a_1)    
+    c = (b_s1s2*a_eq+a_s1*b_eq+c_s2*c_eq+b_1)
+    d = (c_s1s2*a_eq+b_s1*b_eq+d_s2*c_eq+c_1)
+    
+    return (a,b,c,d)
+end
+
+#Get limits for feasible solutions in terms of the system cubic polynomial variable x
+function get_x_lim_vals(strain,syspar::SystemParameters)
+    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
+    temp = N₂*exp(Δx₁z^2)/R₀₁₂
+    temp₂ = 1-R₀₁₂*exp(-Δx₁z^2)-R₀₁*exp(-Δx₁z^2)
+    x_min = temp*(temp₂-sqrt(temp₂^2+4*R₀₁₂*exp(-Δx₁z^2)))/2
+    x_max = temp*(1-R₀₁*exp(-Δx₁z^2))
+    return (x_min,x_max)
+end
+function get_x_lims(strain,syspar::SystemParameters)
+    (x_min,x_max) = get_x_lim_vals(strain,syspar::SystemParameters)
+    return (x_min,min(0,x_max))
+end
+
+#Calcualte the number of susceptibles (S₁,S₂) from the system cubic polynomial variable x
+function calc_S(x,strain,syspar::SystemParameters)
+    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
+
+    S₁ = N₁/(1-x*R₀₁₂*exp(-Δx₁z^2)/N₂)
+    S₂ = N₂-x*(S₁*R₀₁*exp(-Δx₁z^2)/N₁-1)
+    return (S₁,S₂)
+end
+
+#Function to find the equilibrium point for the two-species-one-pathogen system when the system R₀>0 and all 
+#parameters are >0
+function find_eq(strain,syspar::SystemParameters)
+    (a,b,c,d) = get_poly_coeff(strain,syspar)
+    x_sols = cubic_sol(a,b,c,d)  
+    (x_min,x_max) = get_x_lims(strain,syspar)
+
+    x_feasible = []
+    for x_sol in x_sols      
+        if x_min<x_sol<x_max
+            push!(x_feasible,x_sol)
+        end
+    end
+
+    length(x_feasible)==1||error("More then one or no feasible solution exists")
+
+    (S₁,S₂) = calc_S(x_feasible[1],strain,syspar)
+
+    eq_point = EqPoint(S₁,S₂,syspar.N_a-S₁,syspar.N_b-S₂)
+
+    return eq_point
+end
+#-End: Code to find equilibrium points for the two-species-one-strain system
+
 #System dynamics for the two-species-two-pathogen system
 function epievodyn_simple_2_strain!(du,u,p,t)
     strain_1,strain_2,syspar = p
@@ -255,7 +351,8 @@ function find_eq_2_strain(u₀,tspan,p)
 end
 
 function create_PIP(syspar::SystemParameters,option)
-    z_start,z_end,Nₚ,u₀,tspan = option    
+    #z_start,z_end,Nₚ,u₀,tspan = option 
+    z_start,z_end,Nₚ = option   
 
     strategies = range(z_start,stop=z_end,length=Nₚ) 
     
@@ -265,7 +362,8 @@ function create_PIP(syspar::SystemParameters,option)
         resident_strain = strategies[col_idx]
                
         if check_system_matrix(resident_strain,(syspar.N_a,syspar.N_b),syspar) 
-            eq_point = find_eq(u₀,tspan,(resident_strain,syspar))
+            #eq_point = find_eq(u₀,tspan,(resident_strain,syspar))
+            eq_point = find_eq(resident_strain,syspar)
             S_a_eq,S_b_eq = eq_point.S_a,eq_point.S_b
             for i in 1:1:Nₚ #Mutant strain strain
                 mutant_strain = strategies[i]  
@@ -290,7 +388,8 @@ function draw_PIP(fig_name,strategies,r_m_mat,z_start,z_end,z_a,z_b)
     return nothing
 end
 function draw_PIP(fig_name,syspar::SystemParameters,option)
-    z_start,z_end,Nₚ,u₀,tspan = option    
+    #z_start,z_end,Nₚ,u₀,tspan = option  
+    z_start,z_end,Nₚ = option   
 
     strategies = range(z_start,stop=z_end,length=Nₚ)
     

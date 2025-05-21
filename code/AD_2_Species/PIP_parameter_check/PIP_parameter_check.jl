@@ -1,101 +1,5 @@
 #Find and categories singular strategies for PIP parameters
 
-#-Start: Code to find equilibrium points for the two-species-one-strain system
-
-function SysPar2PIPPar(strain,syspar::SystemParameters)
-    Δx₁z = (syspar.z_a-strain)/sqrt(2*syspar.σ²)
-    Δx₂z = (syspar.z_b-strain)/sqrt(2*syspar.σ²)
-    R₀₁ = syspar.τ_max*syspar.c_aa/syspar.γ_a
-    R₀₂ = syspar.τ_max*syspar.c_bb/syspar.γ_b
-    R₀₁₂ = syspar.τ_max*syspar.c_ab/syspar.γ_a #We assume syspar.γ_a=syspar.γ_b
-    N₁ = syspar.N_a
-    N₂ = syspar.N_b
-    return (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂)
-end
-
-#Get coefficients for the system cubic polynomial f(x) = ax³+bx²+cx+d. 
-#The roots of f(x) are equilibrium points candidates
-function get_poly_coeff(strain,syspar::SystemParameters)
-    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
-    
-    expΔx₁z = exp(-Δx₁z^2)
-    expΔx₂z = exp(-Δx₂z^2)    
-
-    a_eq = (R₀₁*R₀₂-R₀₁₂*R₀₁₂)*expΔx₁z*expΔx₂z/(N₁*N₂)
-    b_eq = -R₀₁*expΔx₁z/N₁
-    c_eq = -R₀₂*expΔx₂z/N₂
-
-    a_s1 = -N₁*R₀₁₂*expΔx₁z/N₂
-    b_s1 = N₁
-
-    a_1 = (R₀₁₂*expΔx₁z/N₂)^2 
-    b_1 = -2*R₀₁₂*expΔx₁z/N₂
-    c_1 = 1
-
-    a_s1s2 = -N₁*R₀₁₂*expΔx₁z/N₂
-    b_s1s2 = N₁*(1-R₀₁*expΔx₁z-R₀₁₂*expΔx₁z) 
-    c_s1s2 = N₁*N₂
-
-    a_s2 = (R₀₁₂*expΔx₁z/N₂)^2 
-    b_s2 = -R₀₁₂*expΔx₁z*(2-R₀₁*expΔx₁z-R₀₁₂*expΔx₁z)/N₂
-    c_s2 = (1-R₀₁*expΔx₁z-2*R₀₁₂*expΔx₁z)
-    d_s2 = N₂
-
-    a = (a_s2*c_eq)
-    b = (a_s1s2*a_eq+b_s2*c_eq+a_1)    
-    c = (b_s1s2*a_eq+a_s1*b_eq+c_s2*c_eq+b_1)
-    d = (c_s1s2*a_eq+b_s1*b_eq+d_s2*c_eq+c_1)
-    
-    return (a,b,c,d)
-end
-
-#Get limits for feasible solutions in terms of the system cubic polynomial variable x
-function get_x_lim_vals(strain,syspar::SystemParameters)
-    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
-    temp = N₂*exp(Δx₁z^2)/R₀₁₂
-    temp₂ = 1-R₀₁₂*exp(-Δx₁z^2)-R₀₁*exp(-Δx₁z^2)
-    x_min = temp*(temp₂-sqrt(temp₂^2+4*R₀₁₂*exp(-Δx₁z^2)))/2
-    x_max = temp*(1-R₀₁*exp(-Δx₁z^2))
-    return (x_min,x_max)
-end
-function get_x_lims(strain,syspar::SystemParameters)
-    (x_min,x_max) = get_x_lim_vals(strain,syspar::SystemParameters)
-    return (x_min,min(0,x_max))
-end
-
-#Calcualte the number of susceptibles (S₁,S₂) from the system cubic polynomial variable x
-function calc_S(x,strain,syspar::SystemParameters)
-    (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
-
-    S₁ = N₁/(1-x*R₀₁₂*exp(-Δx₁z^2)/N₂)
-    S₂ = N₂-x*(S₁*R₀₁*exp(-Δx₁z^2)/N₁-1)
-    return (S₁,S₂)
-end
-
-#Function to find the equilibrium point for the two-species-one-pathogen system when the system R₀>0 and all 
-#parameters are >0
-function find_eq(strain,syspar::SystemParameters)
-    (a,b,c,d) = get_poly_coeff(strain,syspar)
-    x_sols = cubic_sol(a,b,c,d)  
-    (x_min,x_max) = get_x_lims(strain,syspar)
-
-    x_feasible = []
-    for x_sol in x_sols      
-        if x_min<x_sol<x_max
-            push!(x_feasible,x_sol)
-        end
-    end
-
-    length(x_feasible)==1||error("More then one or no feasible solution exists")
-
-    (S₁,S₂) = calc_S(x_feasible[1],strain,syspar)
-
-    eq_point = EqPoint(S₁,S₂,syspar.N_a-S₁,syspar.N_b-S₂)
-
-    return eq_point
-end
-#-End: Code to find equilibrium points for the two-species-one-strain system
-
 function create_syspar(R₀_aa_max::Real,
     γ::Real,
     σ²::Real,
@@ -184,7 +88,7 @@ function classify_singular_strat(sing_strat::Real,syspar::SystemParameters;h::Re
         f_temp(x) = calculate_inv_fit(syspar.z_a+(syspar.z_b-syspar.z_a)*x,(eq_point.S_a,eq_point.S_b),syspar) 
         x_sol = find_zeros(f_temp,0.0,1.0,no_pts=no_pts)
 
-        if isempty(x_sol)||length(x_sol)<2
+        if isempty(x_sol)||length(x_sol)==1
             global_check = true
         end
     end
@@ -208,10 +112,11 @@ function PIP_gen_n_classify()
 
     folder_name = "./output/AD_2_Species/PIP_par_classify/"
     sub_folder_name = "Sobol_2025_05_12/"
-    file_name = "Sample"
-    name = folder_name*sub_folder_name*file_name
+    file_name = "sample"
+    name = folder_name*sub_folder_name*"samples/"*file_name
 
     isdir(folder_name*sub_folder_name)||mkdir(folder_name*sub_folder_name)
+    isdir(folder_name*sub_folder_name*"samples/")||mkdir(folder_name*sub_folder_name*"samples/") #Folder to save samples
         
     N = 1
     for i in 1:n_samples        
@@ -280,21 +185,24 @@ function find_unique_strats()
     folder_name = "./output/AD_2_Species/PIP_par_classify/"
     sub_folder_name = "Sobol_2025_05_12/"
     
-    file_names = readdir(folder_name*sub_folder_name)
+    file_names = readdir(folder_name*sub_folder_name*"samples/")
 
     unique_strats = Tuple{Vector{SingularStrat},Bool}[]
-
+    unique_strats_files = String[]
+    
     for file_name in file_names
-        name = folder_name*sub_folder_name*file_name
+        name = folder_name*sub_folder_name*"samples/"*file_name
 
         strats = JLD2.load(name,"strats")
         R₀_bool = JLD2.load(name,"R₀_bool")
 
         if isempty(unique_strats)
             push!(unique_strats,(strats,R₀_bool))
+            push!(unique_strats_files,file_name)
         else
             if is_in_strats(unique_strats,(strats,R₀_bool))==false
                 push!(unique_strats,(strats,R₀_bool))
+                push!(unique_strats_files,file_name)
             end
         end
     end
@@ -307,9 +215,78 @@ function find_unique_strats()
         for strat in strat[1]
             println("---(ESS:$(strat.evo_stable),Conv:$(strat.conv_stable)),Global:$(strat.global_evo))")
         end
+        println("File example: $(unique_strats_files[i])")
         println("-----")
     end
+
+    #Save 
+    temp_name = "list_of_unique/"
+    isdir(folder_name*sub_folder_name*temp_name)||mkdir(folder_name*sub_folder_name*temp_name) #Folder to save list of unique samples
+    JLD2.@save folder_name*sub_folder_name*temp_name*"list.jld2" unique_strats_files
+end
+
+function draw_uniques()
+    folder_name = "./output/AD_2_Species/PIP_par_classify/"
+    sub_folder_name = "Sobol_2025_05_12/"
+    temp_name = "list_of_unique/"
+
+    img_folder =  "./fig/AD_2_Species/PIP_par_classify/"
+
+    file_list = JLD2.load(folder_name*sub_folder_name*temp_name*"list.jld2","unique_strats_files")
+    
+    isdir(img_folder*sub_folder_name)||mkdir(img_folder*sub_folder_name)
+    isdir(img_folder*sub_folder_name*"PIPs/")||mkdir(img_folder*sub_folder_name*"PIPs/") #Folder to save PIPs
+
+    for file_name in file_list
+        
+        syspar_file_path = folder_name*sub_folder_name*"samples/"*file_name
+        img_file_path = img_folder*sub_folder_name*"PIPs/"*file_name[1:end-5]
+        
+        draw_PIP(img_file_path::String,syspar_file_path::String)
+    end
+end
+
+function test_global()
+    folder_name = "./output/AD_2_Species/PIP_par_classify/"
+    sub_folder_name = "Sobol_2025_05_12/"
+    temp_name = "list_of_unique/"
+
+    img_folder =  "./fig/AD_2_Species/PIP_par_classify/"
+
+    file_list = JLD2.load(folder_name*sub_folder_name*temp_name*"list.jld2","unique_strats_files")
+
+    syspar_file_path = folder_name*sub_folder_name*"samples/"*file_list[1]
+    println(syspar_file_path)
+    syspar = JLD2.load(syspar_file_path,"syspar")
+    strats = JLD2.load(syspar_file_path,"strats")
+    sing_strat = strats[1].strategy
+    x_sing_strat = (sing_strat-syspar.z_a)/(syspar.z_b-syspar.z_a)
+    println("ESS = $(strats[1].evo_stable), Strat=$(sing_strat),X_strat=$(x_sing_strat)")
+    
+    @show eq_point = find_eq(sing_strat,syspar) #Find endemic state of the resident strain
+
+    f_temp(x) = calculate_inv_fit(syspar.z_a+(syspar.z_b-syspar.z_a)*x,(eq_point.S_a,eq_point.S_b),syspar) 
+
+    f_temp_alt(x) = maximum(eigvals(system_matrix(syspar.z_a+(syspar.z_b-syspar.z_a)*x,(eq_point.S_a,eq_point.S_b),syspar)))
+    
+    x = range(0.0,1.0,1000)
+    y = f_temp.(x) 
+    y_alt = f_temp_alt.(x)
+
+    x_sol = find_zeros(f_temp,0.0,1.0,no_pts=100)
+    @show x_sol
+
+    plot(syspar.z_a.+(syspar.z_b-syspar.z_a)*x,y)
+    plot!(syspar.z_a.+(syspar.z_b-syspar.z_a)*x,y_alt)
+    #plot!([sing_strat,sing_strat],[0.0,0.1])
+
+    #@show f_temp(x_sing_strat)
+    #@show f_temp_alt(x_sing_strat)
+
+    #x_sol = find_zeros(f_temp,0.0,1.0,no_pts=no_pts)
 end
 
 PIP_gen_n_classify()
 find_unique_strats()
+draw_uniques()
+#test_global()
