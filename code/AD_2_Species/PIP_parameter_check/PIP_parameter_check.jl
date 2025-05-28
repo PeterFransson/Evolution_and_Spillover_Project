@@ -88,6 +88,7 @@ function find_eq_numeric(strain,syspar::SystemParameters;no_pts::Integer=100)
 end
 
 function try_find_eq(strain::Real,syspar::SystemParameters)   
+    get_system_R₀(strain,syspar)>1.0||(return EqPoint(convert(typeof(0.0),syspar.N_a),convert(typeof(0.0),syspar.N_b),0.0,0.0)) 
     syspar.z_a <= strain <= syspar.z_b||error("$(syspar.z_a) <= $(strain) <= $(syspar.z_b)")    
     try         
         eq_point = find_eq(strain,syspar) #Analytical solution
@@ -97,7 +98,8 @@ function try_find_eq(strain::Real,syspar::SystemParameters)
             eq_point = find_eq_numeric(strain,syspar) #Numerical solution
             return eq_point
         catch e_msg2
-            error(e_msg2)
+            JLD2.@save "./output/AD_2_Species/error/error_file.jld2" strain syspar
+            error(e_msg2)            
         end             
     end    
 end
@@ -203,7 +205,6 @@ function PIP_gen_n_classify(folder_name::String,sub_folder_name::String,options:
                 R₀_bool = false #True if system R₀<1 for some strains
             end
             
-
             if isempty(sing_strats_x)==false
                 sing_strats = x2strain.(sing_strats_x)
                 strats = [classify_singular_strat(sing_strat,syspar) for sing_strat in sing_strats]    
@@ -372,36 +373,45 @@ function test_error_file()
 
     @show syspar = JLD2.load(file_name ,"syspar")
     @show strain = JLD2.load(file_name,"strain")
+    @show get_system_R₀(strain,syspar)
 
     @show Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂ = SysPar2PIPPar(strain,syspar)
-    a,b,c,d = get_poly_coeff(strain,syspar)
+    @show a,b,c,d = get_poly_coeff(strain,syspar)
     @show x_min,x_max = get_x_lims(strain,syspar)
 
+    R₀_crit = 1.01
+    x2strain(x) = syspar.z_a+(syspar.z_b-syspar.z_a)*x
     f(x) = a*x^3+b*x^2+c*x+d
+    R₀(x) = get_system_R₀(x2strain(x),syspar)
+    g(x) = R₀(x)-R₀_crit
+    select_grad(x) =  f_fun(x2strain(x),syspar)
     
     @show a,b,c,d 
     @show (p,q) = get_depressed_cubic_coef(a,b,c,d)
     @show depressed_cubic_num = calc_depressed_cubic_num(p,q)
-    @show 3*q*sqrt(-3/p)/(2*p)
-    @show t₁ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3)
-    @show t₂ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3-2*π*1/3)
-    @show t₃ = 2*sqrt(-p/3)*cos(acos(3*q*sqrt(-3/p)/(2*p))/3-2*π*2/3)
-    @show x_sols = cubic_sol(a,b,c,d)  
+    #@show x_sols = cubic_sol(a,b,c,d)  
     #@show x_sol = bisection(f,x_min,x_max)
     @show N₁/R₀₁
     @show N₂/R₀₂    
     #@show S₁,S₂ = calc_S(x_sol,strain,syspar)
-
-    xvec = range(x_min,stop=x_max,length=200)    
+    
+    xvec = range(x_min,stop=x_max,length=200)   
+    norm_strain = range(0,stop=1.0,length=200) 
    
     yvec = f.(xvec)   
-    plot(xvec,yvec)   
-    @show strain
-    @show syspar
+    plot(xvec,yvec) 
+
+    plot(norm_strain,R₀.(norm_strain))
+
     #eq_point = find_eq(strain,syspar)
     eq_point =  try_find_eq(strain,syspar)
+
+    @show eq_point.S_a 
+    @show eq_point.S_b
+
+    #@show R₀_zeros_x = find_zeros(g, 0.0,1.0,no_pts=100)
 end 
 
-run_work_list()
+#run_work_list()
 #test_global()
-#test_error_file()
+test_error_file()
