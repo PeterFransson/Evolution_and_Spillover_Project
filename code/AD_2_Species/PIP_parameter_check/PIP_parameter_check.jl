@@ -383,8 +383,10 @@ function test_error_file()
     x2strain(x) = syspar.z_a+(syspar.z_b-syspar.z_a)*x
     f(x) = a*x^3+b*x^2+c*x+d
     R₀(x) = get_system_R₀(x2strain(x),syspar)
+    inv_fit(x) = calculate_inv_fit(x2strain(x),(syspar.N_a,syspar.N_b),syspar)  
     g(x) = R₀(x)-R₀_crit
-    select_grad(x) =  f_fun(x2strain(x),syspar)
+    select_grad_fun(x) =  calculate_select_grad(x2strain(x),(syspar.N_a,syspar.N_b),syspar) 
+    sec_inv_fit_fun(x) = calculate_sec_inv_fit(x2strain(x),(syspar.N_a,syspar.N_b),syspar)
     
     @show a,b,c,d 
     @show (p,q) = get_depressed_cubic_coef(a,b,c,d)
@@ -395,19 +397,25 @@ function test_error_file()
     @show N₂/R₀₂    
     #@show S₁,S₂ = calc_S(x_sol,strain,syspar)
     
-    xvec = range(x_min,stop=x_max,length=200)   
-    norm_strain = range(0,stop=1.0,length=200) 
+    xvec = range(x_min,stop=x_max,length=500)   
+    norm_strain = range(0,stop=1.0,length=500) 
    
     yvec = f.(xvec)   
     plot(xvec,yvec) 
 
-    plot(norm_strain,R₀.(norm_strain))
+    @show find_zeros(select_grad_fun,0.0,1.0,no_pts=100)
 
+    pl1 = plot(norm_strain,R₀.(norm_strain))
+    pl2 = plot(norm_strain,inv_fit.(norm_strain))
+    pl3 = plot(norm_strain,select_grad_fun.(norm_strain))
+    pl4 = plot(norm_strain,sec_inv_fit_fun.(norm_strain))
+    plot(pl1,pl2,pl3,pl4,layout=(4,1))
+    #
     #eq_point = find_eq(strain,syspar)
-    eq_point =  try_find_eq(strain,syspar)
+    #eq_point =  try_find_eq(strain,syspar)
 
-    @show eq_point.S_a 
-    @show eq_point.S_b
+    #@show eq_point.S_a 
+    #@show eq_point.S_b
 
     #@show R₀_zeros_x = find_zeros(g, 0.0,1.0,no_pts=100)
 end 

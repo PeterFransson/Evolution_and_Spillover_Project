@@ -86,7 +86,6 @@ function calculate_inv_fit(mutant_strain::Real,resident_S,syspar::SystemParamete
     return λ_max
 end
 
-
 #Calculate Selection gradients (first order derivative of invasion fitness)
 function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb,c_ab,γ_a,γ_b,N_a,N_b)
     r_11 = S_a*τ_a*c_aa/N_a-γ_a
@@ -102,7 +101,7 @@ function calculate_select_grad(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,c_aa,c_bb
     tr_R = r_11+r_22
     det_R =  r_11*r_22-r_12*r_21
 
-    dtr_R = dr_11+dr_12
+    dtr_R = dr_11+dr_22
     ddet_R = dr_11*r_22+r_11*dr_22-dr_12*r_21-r_12*dr_21
 
     dλ_max = (dtr_R+(tr_R*dtr_R-2*ddet_R)/sqrt(tr_R^2-4*det_R))/2
@@ -142,10 +141,10 @@ function calculate_sec_inv_fit(S_a,S_b,τ_a,τ_b,τ_prime_a,τ_prime_b,τ_d_prim
     tr_R = r_11+r_22
     det_R =  r_11*r_22-r_12*r_21
 
-    dtr_R = dr_11+dr_12
+    dtr_R = dr_11+dr_22
     ddet_R = dr_11*r_22+r_11*dr_22-dr_12*r_21-r_12*dr_21
 
-    ddtr_R = ddr_11+ddr_12
+    ddtr_R = ddr_11+ddr_22
     dddet_R = ddr_11*r_22+r_11*ddr_22+2*dr_11*dr_22-ddr_12*r_21-r_12*ddr_21-2*dr_12*dr_21
 
     ddλ_max = (ddtr_R+(tr_R*ddtr_R+dtr_R^2-2*dddet_R)/sqrt(tr_R^2-4*det_R)-(tr_R*dtr_R-2*ddet_R)^2/(tr_R^2-4*det_R)^(3/2))/2
