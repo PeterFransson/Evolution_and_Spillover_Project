@@ -30,34 +30,6 @@ function create_syspar(R₀_aa_max::Real,
     return syspar 
 end 
 
-#Find equilibrium point and calculate second order derivative of invasion fitness at this point
-function find_sec_inv_fit(strain::Real,syspar::SystemParameters)
-    eq_point = find_eq(strain,syspar)    
-    S = (eq_point.S_a,eq_point.S_b)
-    
-    ddλ_max = calculate_sec_inv_fit(strain, S, syspar)
-
-    return ddλ_max
-end
-#Find equilibrium point and calculate selection gradiant at this point
-function find_selectgrad(strain::Real,syspar::SystemParameters)
-    eq_point = find_eq(strain,syspar)    
-    S = (eq_point.S_a,eq_point.S_b)    
-    
-    dλ_max = calculate_select_grad(strain,S,syspar)
-
-    return dλ_max
-end
-
-#Check if singular strategy strain is convergence stable
-function check_convergence(strain::Real,syspar::SystemParameters;h::Real=10^-4)
-        
-    dλ_max_1 =  find_selectgrad(strain+h,syspar)
-    dλ_max_2 =  find_selectgrad(strain-h,syspar)
-
-    return (dλ_max_1-dλ_max_2)/(2*h)<0
-end
-
 function get_system_R₀(strain::Real,syspar::SystemParameters)
     (Δx₁z,Δx₂z,R₀₁,R₀₂,R₀₁₂,N₁,N₂) = SysPar2PIPPar(strain,syspar)
     
@@ -89,7 +61,7 @@ end
 
 function try_find_eq(strain::Real,syspar::SystemParameters)   
     get_system_R₀(strain,syspar)>1.0||(return EqPoint(convert(typeof(0.0),syspar.N_a),convert(typeof(0.0),syspar.N_b),0.0,0.0)) 
-    syspar.z_a <= strain <= syspar.z_b||error("$(syspar.z_a) <= $(strain) <= $(syspar.z_b)")    
+    #syspar.z_a <= strain <= syspar.z_b||error("$(syspar.z_a) <= $(strain) <= $(syspar.z_b)")    
     try         
         eq_point = find_eq(strain,syspar) #Analytical solution
         return eq_point 
@@ -104,9 +76,81 @@ function try_find_eq(strain::Real,syspar::SystemParameters)
     end    
 end
 
+#Find equilibrium point and calculate second order derivative of invasion fitness at this point
+function find_sec_inv_fit(strain::Real,syspar::SystemParameters)
+    eq_point = try_find_eq(strain,syspar)    
+    S = (eq_point.S_a,eq_point.S_b)
+    
+    ddλ_max = calculate_sec_inv_fit(strain, S, syspar)
+
+    return ddλ_max
+end
+#Find equilibrium point and calculate selection gradiant at this point
+function find_selectgrad(strain::Real,syspar::SystemParameters)
+    eq_point = try_find_eq(strain,syspar)    
+    S = (eq_point.S_a,eq_point.S_b)    
+    
+    dλ_max = calculate_select_grad(strain,S,syspar)
+
+    return dλ_max
+end
+
+#Check if singular strategy strain is convergence stable
+function check_convergence(strain::Real,syspar::SystemParameters;h::Real=10^-4)
+        
+    dλ_max_1 =  find_selectgrad(strain+h,syspar)
+    dλ_max_2 =  find_selectgrad(strain-h,syspar)
+
+    return (dλ_max_1-dλ_max_2)/(2*h)<0
+end
+
+#Finds the sub-intervals where the differentiable function f is positive (f>0.0) for
+#a given closed interval
+function find_pos_intervals(x_vals::Vector{R},f::Function,f_dif::Function;tol::Real=10^-4) where {R<:Real}
+    #x_vals is ordered and includes the limit for a given intervals and 
+    #the roots (f(x)=0) within in the interval
+    x_intervals = Tuple{Real,Real}[] #Intervals where f>0
+    n_x_vals = length(x_vals)
+
+    n_x_vals>=2||error("length(x_vals)<2")
+
+    isleft(x) = f(x)>0.0||(abs(f(x))<tol&&abs(f_dif(x))>tol&&f_dif(x)>0.0)
+    isright(x) = f(x)>0.0||(abs(f(x))<tol&&abs(f_dif(x))>tol&&f_dif(x)<0.0)
+
+    left_candidates = [isleft(x) for x in x_vals]
+    right_candidates = [isright(x) for x in x_vals]
+    
+    left_idx = 0    
+    
+    for idx in 1:n_x_vals  
+        if left_idx==0
+            if left_candidates[idx]
+                left_idx=idx
+            end
+        else
+            if right_candidates[idx]
+                push!(x_intervals,(x_vals[left_idx],x_vals[idx]))
+                left_idx=0               
+            end
+        end        
+    end
+
+    return x_intervals
+end
+
+function find_pos_intervals(f::Function,f_dif::Function;tol::Real=10^-4,no_pts::Integer=100,digits::Integer=4)
+    x_vals = [0.0,1.0]
+    roots = find_zeros(f,0.0,1.0,no_pts=no_pts)
+    append!(x_vals ,roots)
+    unique!(x->round(x,digits=digits),x_vals)
+    sort!(x_vals)    
+
+    x_intervals = find_pos_intervals(x_vals,f,f_dif;tol=tol)
+    return x_intervals
+end
+
 #Calculate the selection gradiant Sᵣ´(m=r) 
-function f_fun(strain,syspar::SystemParameters)
-    #eq_point = find_eq(strain,syspar) 
+function f_fun(strain,syspar::SystemParameters)    
     eq_point = try_find_eq(strain,syspar)   
     return calculate_select_grad(strain,(eq_point.S_a,eq_point.S_b),syspar) 
 end
@@ -117,9 +161,8 @@ function classify_singular_strat(sing_strat::Real,syspar::SystemParameters;h::Re
     evo_check = find_sec_inv_fit(sing_strat,syspar)
 
     global_check = false #True if evolutionarily stable point is a global fitness maximum
-    if evo_check<0
-        #eq_point = find_eq(sing_strat,syspar) #Find endemic state of the resident strain
-        eq_point = try_find_eq(sing_strat,syspar)
+    if evo_check<0        
+        eq_point = try_find_eq(sing_strat,syspar) #Find endemic state of the resident strain
         f_temp(x) = calculate_inv_fit(syspar.z_a+(syspar.z_b-syspar.z_a)*x,(eq_point.S_a,eq_point.S_b),syspar) 
         x_sol = find_zeros(f_temp,0.0,1.0,no_pts=no_pts)
 
@@ -137,10 +180,7 @@ end
 function PIP_gen_n_classify(folder_name::String,sub_folder_name::String,options::Dict)
     no_pts = options["no_pts"] #Number points used to determine initial bracket intervals in find_zeros
     R₀_crit = options["R₀_crit"]
-    n_samples = options["n_samples"] #Number of Sobol samples in the parameter space
-
-    #folder_name = "./output/AD_2_Species/PIP_par_classify/"
-    #sub_folder_name = "Sobol_2025_05_12/"
+    n_samples = options["n_samples"] #Number of Sobol samples in the parameter space    
 
     R0_aa_min, R0_aa_max = options["R0_aa_min"],options["R0_aa_max"]
     R0_bb_min, R0_bb_max = options["R0_bb_min"],options["R0_bb_max"]
@@ -191,16 +231,26 @@ function PIP_gen_n_classify(folder_name::String,sub_folder_name::String,options:
         f(x) =  f_fun(x2strain(x),syspar)
         R₀(x) = get_system_R₀(x2strain(x),syspar)
         g(x) = R₀(x)-R₀_crit
+        g_dif(x) = calculate_select_grad(x2strain(x),(syspar.N_a,syspar.N_b),syspar)
 
-        R₀_zeros_x = find_zeros(g, 0.0,1.0,no_pts=no_pts) #Find points where R₀=R₀_crit
+        R₀_zeros_intervals = find_pos_intervals(g,g_dif) #Find intervals where R₀>=R₀_crit
 
-        if isempty(R₀_zeros_x)||(length(R₀_zeros_x) == 2&&minimum(R₀_zeros_x)>0&&maximum(R₀_zeros_x)<1)
-            if isempty(R₀_zeros_x) #System R₀>1 for all strains
-                sing_strats_x = find_zeros(f, 0.0,1.0,no_pts=no_pts) #Find all evolutionary singular strategies 
+        !isempty(R₀_zeros_intervals)||println("Warning: no R₀>=R₀_crit found")
+        length(R₀_zeros_intervals)<=2||println("Warning: more thant 2 regions where R₀>=R₀_crit found")
+
+        if length(R₀_zeros_intervals)==1||length(R₀_zeros_intervals)==2
+            if length(R₀_zeros_intervals)==1 #System R₀>1 for all strains
+                l_val, r_val = R₀_zeros_intervals[1][1],R₀_zeros_intervals[1][2]
+
+                sing_strats_x = find_zeros(f, l_val,r_val,no_pts=no_pts) #Find all evolutionary singular strategies 
                 R₀_bool = true #True if system R₀>1 all strains
-            else #System R₀<1 in a interval [minimum(R₀_zeros_x),maximum(R₀_zeros_x)]
-                sing_strats_x = find_zeros(f, 0.0,minimum(R₀_zeros_x),no_pts=no_pts) #Find all evolutionary singular strategies  in the interval [0,minimum(R₀_zeros_x)]
-                sing_strats_x_r = find_zeros(f, maximum(R₀_zeros_x),1.0,no_pts=no_pts) #Find all evolutionary singular strategies  in the interval [maximum(R₀_zeros_x),1.0]
+            else #System R₀<1 in a interval [r_val₁,l_val₂]
+                l_val₁, r_val₁ = R₀_zeros_intervals[1][1],R₀_zeros_intervals[1][2]
+                l_val₂, r_val₂ = R₀_zeros_intervals[2][1],R₀_zeros_intervals[2][2]
+
+                sing_strats_x = find_zeros(f,l_val₁,r_val₁,no_pts=no_pts) #Find all evolutionary singular strategies  in the interval [0,minimum(R₀_zeros_x)]
+                sing_strats_x_r = find_zeros(f,l_val₂,r_val₂,no_pts=no_pts) #Find all evolutionary singular strategies  in the interval [maximum(R₀_zeros_x),1.0]
+                
                 append!(sing_strats_x,sing_strats_x_r)
                 R₀_bool = false #True if system R₀<1 for some strains
             end
@@ -213,7 +263,7 @@ function PIP_gen_n_classify(folder_name::String,sub_folder_name::String,options:
 
                 N += 1 
             end
-        end 
+        end                
     end   
 end
 
@@ -263,7 +313,7 @@ function find_unique_strats(folder_name::String,sub_folder_name::String)
         println("PIP type $(i): N sing strat:$(n_sing_strats), R₀>1:$(strat[2])")
         println("--Number of singular strategies:$(n_sing_strats)")
         for strat in strat[1]
-            println("---(ESS:$(strat.evo_stable),Conv:$(strat.conv_stable)),Global:$(strat.global_evo))")
+            println("---(ESS:$(strat.evo_stable),Conv:$(strat.conv_stable),Global:$(strat.global_evo))")
         end
         println("File example: $(unique_strats_files[i])")
         println("Number of occurrence: $(unique_strats_n[i])/$(n_samples)")
@@ -299,15 +349,15 @@ function run_work_list()
     #Folder names
     folder_name = "./output/AD_2_Species/PIP_par_classify/"
     img_folder =  "./fig/AD_2_Species/PIP_par_classify/" 
-    sub_folder_name = "Sobol_2025_05_27/" 
+    sub_folder_name = "Sobol_2025_06_04/" 
     
     isdir(folder_name*sub_folder_name)||mkdir(folder_name*sub_folder_name)
     isdir(folder_name*sub_folder_name*"options/")||mkdir(folder_name*sub_folder_name*"options/")
     
     options = Dict("no_pts" => 100, #Number points used to determine initial bracket intervals in the find_zeros algorithm to find singular strategies
-    "R₀_crit" => 1.01,
+    "R₀_crit" => 1.001,
     "n_samples" => 10^6, #Number of Sobol samples in the parameter space
-    "R0_aa_min" => 1.0, 
+    "R0_aa_min" => 1.5, 
     "R0_aa_max" => 6.0,
     "R0_bb_min" => 0.5, 
     "R0_bb_max" => 6.0, 
@@ -379,12 +429,13 @@ function test_error_file()
     @show a,b,c,d = get_poly_coeff(strain,syspar)
     @show x_min,x_max = get_x_lims(strain,syspar)
 
-    R₀_crit = 1.01
+    R₀_crit = 1.001
     x2strain(x) = syspar.z_a+(syspar.z_b-syspar.z_a)*x
     f(x) = a*x^3+b*x^2+c*x+d
     R₀(x) = get_system_R₀(x2strain(x),syspar)
     inv_fit(x) = calculate_inv_fit(x2strain(x),(syspar.N_a,syspar.N_b),syspar)  
     g(x) = R₀(x)-R₀_crit
+    g_dif(x) = calculate_select_grad(x2strain(x),(syspar.N_a,syspar.N_b),syspar)
     select_grad_fun(x) =  calculate_select_grad(x2strain(x),(syspar.N_a,syspar.N_b),syspar) 
     sec_inv_fit_fun(x) = calculate_sec_inv_fit(x2strain(x),(syspar.N_a,syspar.N_b),syspar)
     
@@ -403,7 +454,18 @@ function test_error_file()
     yvec = f.(xvec)   
     plot(xvec,yvec) 
 
-    @show find_zeros(select_grad_fun,0.0,1.0,no_pts=100)
+    x_sol = [0.0,1.0]
+    @show roots = find_zeros(g,0.0,1.0,no_pts=100)
+    append!(x_sol ,roots)
+    unique!(x->round(x,digits=4),x_sol)
+    sort!(x_sol)
+    @show x_sol
+
+    x_vals = find_pos_intervals(x_sol,g,g_dif)    
+
+    @show x_vals
+
+    @show find_pos_intervals(g,g_dif)
 
     pl1 = plot(norm_strain,R₀.(norm_strain))
     pl2 = plot(norm_strain,inv_fit.(norm_strain))
@@ -420,6 +482,6 @@ function test_error_file()
     #@show R₀_zeros_x = find_zeros(g, 0.0,1.0,no_pts=100)
 end 
 
-#run_work_list()
+run_work_list()
 #test_global()
-test_error_file()
+#test_error_file()
