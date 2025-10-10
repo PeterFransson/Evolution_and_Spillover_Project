@@ -4,7 +4,7 @@ function get_depressed_cubic_coef(a,b,c,d)
     return (p,q)
 end
 
-#Number used to calcualted the real solution to a depressed cubic equation when calc_discriminant_depressed_cubic>0  
+#Number used to calculate the real solution to a depressed cubic equation when calc_discriminant_depressed_cubic>0  
 function calc_depressed_cubic_num(p,q)
     return q^2/4+p^3/27
 end
