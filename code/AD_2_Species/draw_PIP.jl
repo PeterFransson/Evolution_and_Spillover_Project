@@ -47,9 +47,9 @@ function plot_list()
 end
 #plot_list()
 
-function draw_PIP(img_file_path::String,syspar_file_path::String)
-    syspar = JLD2.load(syspar_file_path,"syspar")
 
+
+function draw_PIP(img_file_path::String,syspar::SystemParameters)
     Nₚ = 2000
     z_start, z_end = syspar.z_a-0.02,syspar.z_b+0.02
 
@@ -70,5 +70,11 @@ function draw_PIP(img_file_path::String,syspar_file_path::String)
     option = z_start,z_end,Nₚ
            
     draw_PIP(img_file_path,syspar,option) 
+    return nothing
+end
+
+function draw_PIP(img_file_path::String,syspar_file_path::String)
+    syspar = JLD2.load(syspar_file_path,"syspar")
+    draw_PIP(img_file_path,syspar)
     return nothing
 end
