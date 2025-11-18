@@ -33,7 +33,7 @@ function PIP_work_list()
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0 #variance and amplitude τ-function
     μ_a = 0.2 #Position of species a in resource space     
-    N_a = 500
+    N_a = 100000
     N_b = 10000  
     R₀_aa_max = 2.0 
     R₀_bb_max = 1.4  
@@ -52,7 +52,7 @@ function PIP_work_list()
     Δᵣ,
     c_ratio) 
 
-    img_file_path = "./fig/misc/test_number_parameter_for_PIP/fig_3.svg"
+    img_file_path = "./fig/misc/test_number_parameter_for_PIP/fig_4.svg"
 
     draw_PIP(img_file_path,syspar)    
 end

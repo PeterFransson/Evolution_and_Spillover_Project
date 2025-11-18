@@ -1,4 +1,4 @@
-#Find and categories singular strategies for PIP parameters
+#Find (parameter sweep) and categories singular strategies for PIP parameters
 
 function create_syspar(R₀_aa_max::Real,
     γ::Real,
@@ -184,13 +184,13 @@ function PIP_gen_n_classify(folder_name::String,sub_folder_name::String,options:
 
     R0_aa_min, R0_aa_max = options["R0_aa_min"],options["R0_aa_max"]
     R0_bb_min, R0_bb_max = options["R0_bb_min"],options["R0_bb_max"]
-    N_a_min, N_a_max = options["N_a_min"],options["N_a_max"]
-    N_b_min, N_b_max = options["N_b_min"],options["N_b_max"]
+    #N_a_min, N_a_max = options["N_a_min"],options["N_a_max"] #PIPs are independent from N_a and N_b
+    #N_b_min, N_b_max = options["N_b_min"],options["N_b_max"] #PIPs are independent from N_a and N_b
     Δᵣ_min, Δᵣ_max = options["Δᵣ_min"],options["Δᵣ_max"]
     c_ratio_min, c_ratio_max = options["c_ratio_min"],options["c_ratio_max"]
     
     #Setup SobolSeq
-    dim = 6 #number of parameters 
+    dim = 4 #number of parameters 
     s = SobolSeq(dim)
 
     #--Create system parameter--     
@@ -208,13 +208,13 @@ function PIP_gen_n_classify(folder_name::String,sub_folder_name::String,options:
     for i in 1:n_samples        
         x = next!(s)
 
-        N_a = trunc(Int,N_a_min+x[1]*(N_a_max-N_a_min))
-        N_b = trunc(Int,N_b_min+x[2]*(N_b_max-N_b_min))   
-        R₀_aa_max = R0_aa_min+x[3]*(R0_aa_max-R0_aa_min) 
-        R₀_bb_max = R0_bb_min+x[4]*(R0_bb_max-R0_bb_min)     
+        N_a = 1000#trunc(Int,N_a_min+x[1]*(N_a_max-N_a_min))#PIPs are independent from N_a and N_b
+        N_b = 1000#trunc(Int,N_b_min+x[2]*(N_b_max-N_b_min))#PIPs are independent from N_a and N_b  
+        R₀_aa_max = R0_aa_min+x[1]*(R0_aa_max-R0_aa_min) 
+        R₀_bb_max = R0_bb_min+x[2]*(R0_bb_max-R0_bb_min)     
         R₀_ratio = R₀_bb_max/R₀_aa_max #R₀_ratio∈(0,∞) 
-        Δᵣ = Δᵣ_min+x[5]*(Δᵣ_max-Δᵣ_min) #Δᵣ∈(0,∞) Distance between species (1 Δᵣ = sqrt(2)*σ)
-        c_ratio = c_ratio_min+x[6]*(c_ratio_max-c_ratio_min) #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
+        Δᵣ = Δᵣ_min+x[3]*(Δᵣ_max-Δᵣ_min) #Δᵣ∈(0,∞) Distance between species (1 Δᵣ = sqrt(2)*σ)
+        c_ratio = c_ratio_min+x[4]*(c_ratio_max-c_ratio_min) #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
         
         syspar = create_syspar(R₀_aa_max,
         γ,
@@ -349,7 +349,7 @@ function run_work_list()
     #Folder names
     folder_name = "./output/AD_2_Species/PIP_par_classify/"
     img_folder =  "./fig/AD_2_Species/PIP_par_classify/" 
-    sub_folder_name = "Sobol_2025_06_04/" 
+    sub_folder_name = "Sobol_2025_11_18_for_paper/" 
     
     isdir(folder_name*sub_folder_name)||mkdir(folder_name*sub_folder_name)
     isdir(folder_name*sub_folder_name*"options/")||mkdir(folder_name*sub_folder_name*"options/")
