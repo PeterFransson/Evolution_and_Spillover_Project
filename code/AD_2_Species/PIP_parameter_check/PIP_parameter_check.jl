@@ -1,4 +1,4 @@
-#Find (parameter sweep) and categories singular strategies for PIP parameters
+#Find  and categories singular strategies for PIP parameters (parameter sweep)
 
 function create_syspar(R₀_aa_max::Real,
     γ::Real,
@@ -252,7 +252,7 @@ function PIP_gen_n_classify(folder_name::String,sub_folder_name::String,options:
                 sing_strats_x_r = find_zeros(f,l_val₂,r_val₂,no_pts=no_pts) #Find all evolutionary singular strategies  in the interval [maximum(R₀_zeros_x),1.0]
                 
                 append!(sing_strats_x,sing_strats_x_r)
-                R₀_bool = false #True if system R₀<1 for some strains
+                R₀_bool = false #True if system R₀>1 for some strains
             end
             
             if isempty(sing_strats_x)==false
