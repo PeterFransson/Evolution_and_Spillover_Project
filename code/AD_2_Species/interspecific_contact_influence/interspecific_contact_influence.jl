@@ -212,17 +212,15 @@ function get_singular_strats(syspar::SystemParameters;R₀_crit::Real=1.001,no_p
     return (strats,R₀_bool)
 end
 
-function create_syspar(Δᵣ,c_ratio)
+function create_syspar(Δᵣ,c_ratio,R₀_aa_max,R₀_bb_max)
     #Create syspar
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0 #variance and amplitude τ-function
     μ_a = 0.2 #Position of species a in resource space     
     N_a = 1000
-    N_b = 1000 
-    R₀_aa_max = 2.0 
-    R₀_bb_max = 1.5  
+    N_b = 1000      
     R₀_ratio = R₀_bb_max/R₀_aa_max #R₀_ratio∈(0,∞) 
-    #Δᵣ∈(0,∞) Distance between species (1 Δᵣ = sqrt(2)*σ) 1.2
+    #Δᵣ∈(0,∞) Distance between species (1 Δᵣ = sqrt(2)*σ)
     #c_ratio∈(0,1) IMPORTANT! This should not be to low otherwise its equal to a disconnected system 
     
     syspar = create_syspar(R₀_aa_max,
@@ -239,13 +237,13 @@ function create_syspar(Δᵣ,c_ratio)
     return syspar
 end
 
-function save_heatmap_samples(Δᵣ_vec::Vector{R},c_ratio_vec::Vector{R},filepath::String) where {R<:Real}
+function save_heatmap_samples(Δᵣ_vec::Vector{R},c_ratio_vec::Vector{R},R₀_aa_max::R,R₀_bb_max::R,filepath::String) where {R<:Real}
     n_Δᵣ = length(Δᵣ_vec)
     n_c_ratio = length(c_ratio_vec)
 
     for i in 1:n_c_ratio
         for j in 1:n_Δᵣ
-            syspar = create_syspar(Δᵣ_vec[j],c_ratio_vec[i])
+            syspar = create_syspar(Δᵣ_vec[j],c_ratio_vec[i],R₀_aa_max,R₀_bb_max)
             strats,R₀_bool = get_singular_strats(syspar)  
             
             JLD2.@save filepath*"_$(i)_$(j).jld2" strats R₀_bool syspar
@@ -301,15 +299,53 @@ function draw_interspecific_influence_plot()
     Δᵣ_vec = collect(range(start=0.1,stop=2.5,length=200))
     c_ratio_vec = collect(range(start=0.01,stop=0.8,length=200))
 
-    foldername = "./output/AD_2_Species/interspecific_contact_influence/paper_fig_final_3/"
-    filename = "sample"
-    filepath = foldername*filename
+    folders = ["paper_fig_R0a_2_0_R0b_1_1/",
+    "paper_fig_R0a_2_0_R0b_1_2/",
+    "paper_fig_R0a_2_0_R0b_1_5/",
+    "paper_fig_R0a_2_0_R0b_1_7/",
+    "paper_fig_R0a_2_0_R0b_2_0/",
+    "paper_fig_R0a_2_0_R0b_2_5/"] 
+    R₀_aa_maxs = [2.0,2.0,2.0,2.0,2.0,2.0]
+    R₀_bb_maxs = [1.1,1.2,1.5,1.7,2.0,2.5]
+        
+    length(folders)==length(R₀_aa_maxs)==length(R₀_bb_maxs)||error("folders,R₀_aa_maxs,R₀_bb_maxs not the same size")
+    n_jobs = length(folders)
 
-    isdir(foldername)||(mkdir(foldername);save_heatmap_samples(Δᵣ_vec,c_ratio_vec,filepath))
+    for i = 1:n_jobs
+        R₀_aa_max = R₀_aa_maxs[i]
+        R₀_bb_max = R₀_bb_maxs[i]
+        
+        foldername = "./output/AD_2_Species/interspecific_contact_influence/"*folders[i]
+        imgfoldername = "./fig/AD_2_Species/interspecific_contact_influence/"*folders[i]
 
-    heatmap_mat = calc_heatmap_mat(Δᵣ_vec,c_ratio_vec,filepath) 
+        filename = "sample"
+        filepath = foldername*filename
 
-    heatmap(Δᵣ_vec,c_ratio_vec,heatmap_mat)
+        isdir(foldername)||(mkdir(foldername);save_heatmap_samples(Δᵣ_vec,c_ratio_vec,R₀_aa_max,R₀_bb_max,filepath))
+        isdir(imgfoldername)||(mkdir(imgfoldername))
+
+        
+        heatmap_mat = calc_heatmap_mat(Δᵣ_vec,c_ratio_vec,filepath) 
+        
+        mygrad = cgrad([RGB(0.0,0.0,0.0),
+        RGB(87/255,16/255,109/255),
+        RGB(187/255,55/255,85/255),
+        RGB(249/255,141/255,10/255),
+        RGB(252/255,1.0,164/255)],         
+        categorical = true)
+        
+        heatmap(Δᵣ_vec,c_ratio_vec,heatmap_mat,c=mygrad)        
+        savefig(imgfoldername*"heatmap.svg")
+        
+        host_shift_heatmap_mat = calc_host_shift_heatmap_mat(Δᵣ_vec,c_ratio_vec,filepath)
+        host_shift_gradient = cgrad([RGB(0.0,158/255,115/255),
+        RGB(204/255,121/255,167/255),
+        RGB(230/255,159/255,0.0)],
+        categorical = true)
+                 
+        heatmap(Δᵣ_vec,c_ratio_vec,host_shift_heatmap_mat,color=host_shift_gradient)           
+        savefig(imgfoldername*"host_shift_heatmap.svg")
+    end
 end
 
 draw_interspecific_influence_plot()

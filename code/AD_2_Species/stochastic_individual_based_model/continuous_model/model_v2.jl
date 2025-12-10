@@ -322,17 +322,22 @@ end
 function work_list()
     #--Create system parameter-- 
 
-    #maximum intraspecific basic reproduction number
-    R₀_aa_max = 2.4
-    R₀_bb_max = R₀_aa_max*1.0
+    #Basic parameters
+    R₀_aa_max = 2.0
+    R₀_bb_max = 2.0
+    Δᵣ = 1.2
+    c_ratio = 0.6
 
     γ = 0.1 #Recovery rate    
     σ²,amplitude = 0.0025,1.0
-    μ_a = 0.2
-    μ_b = 0.32
-    @show Δᵣ = (μ_b-μ_a)/sqrt(2*σ²)
-    @show c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
-    c = 0.8
+    μ_a = 0.2    
+    @show μ_b = μ_a+sqrt(2*σ²)*Δᵣ   
+    
+    z_min_lim = μ_a-0.05
+    @show z_max_lim = μ_b+0.05
+    
+    c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
+    c = c_crit*c_ratio 
         
     N_a = 10^3
     N_b = 10^3    
@@ -346,17 +351,17 @@ function work_list()
 
     #--Create stochastic simulation parameter-- 
     Nₚ = 300 #Number of strains
-    μₘ = 0.01 #Mutation rate <----
-    σₘ = 0.003#0.01 #0.0158 <----
+    μₘ = 0.03 #Mutation rate <----
+    σₘ = 0.001#0.01 #0.0158 <----
     t₀ = 0.0 #<----
     t_end = 2500.0 #<----
     n_samples = 2500 #<----   
 
     simpar = StocSimPar(Nₚ,μₘ,σₘ,t₀,t_end,n_samples)  
 
-    n_traj=10
+    n_traj=5
 
-    sub_folder_name = "test_9_v2/"
+    sub_folder_name = "branching_2_v2/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
 
@@ -367,7 +372,7 @@ function work_list()
     #Create samples
     create_samples(data_folder_name,syspar,simpar;n_traj=n_traj)
     #Create sample figures
-    create_sample_fig(data_folder_name,figure_folder,n_traj,0.0,1.0,2000)
+    create_sample_fig(data_folder_name,figure_folder,n_traj,z_min_lim,z_max_lim,2000)
 
     return nothing 
 end

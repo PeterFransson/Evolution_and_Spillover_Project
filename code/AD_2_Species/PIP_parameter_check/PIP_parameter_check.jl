@@ -375,6 +375,8 @@ function run_work_list()
     PIP_gen_n_classify(folder_name,sub_folder_name,options)
     find_unique_strats(folder_name,sub_folder_name)
     draw_uniques(folder_name,sub_folder_name,img_folder)
+
+    find_host_shifts(folder_name,sub_folder_name)
 end
 
 function test_global()
