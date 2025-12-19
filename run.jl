@@ -1,6 +1,6 @@
 using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
 using LinearAlgebra, NLsolve, Roots, Sobol
-using DataFrames, CSV, JLD2
+using DataFrames, CSV, JLD2, PoissonRandom
 
 include("code/auxiliary_funs/bisection.jl")
 #include("code/example_1/ex1.jl")
@@ -35,7 +35,8 @@ include("code/AD_2_Species/find_host_shifts/find_host_shifts.jl")
 #include("code/AD_2_Species//misc_scripts/generate_gif_pip.jl")
 #include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/model.jl")
 #include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/model_v2.jl")
+include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/approximate_model.jl")
 #include("code/AD_2_Species/misc_scripts/eq_find_test.jl")
 #include("code/AD_2_Species/PIP_parameter_check/PIP_parameter_check.jl")
 #include("code/AD_2_Species/misc_scripts/test_number_parameter_for_PIP.jl")
-include("code/AD_2_Species/interspecific_contact_influence/interspecific_contact_influence.jl")
+#include("code/AD_2_Species/interspecific_contact_influence/interspecific_contact_influence.jl")
