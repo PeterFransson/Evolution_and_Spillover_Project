@@ -149,6 +149,9 @@ function run_Gillespie!(S::Vector{T},
     
     Δt_sample = (t_end-t₀)/n_samples
     sample_nr = 1
+    n_announcements = 500
+    Δt_announcement = (t_end-t₀)/n_announcements
+    announcement_nr = 1
     n_species = length(S)
     while t<t_end
         t = SI_Gillespie!(S,I,n_species,t,p)    
@@ -163,7 +166,11 @@ function run_Gillespie!(S::Vector{T},
                 push!(I_vec,Infected[])
             end
             sample_nr += 1            
-        end       
+        end  
+        if t>t₀+announcement_nr*Δt_announcement
+            println("T: $(t)/$(t_end), announcement: $(announcement_nr)/$(n_announcements)")
+            announcement_nr += 1
+        end      
     end 
         
     return (S_vec,I_vec,t_vec)
@@ -191,7 +198,7 @@ function draw_evolution(t_vec,I_vec,img_name::String,z_start::Real,z_end::Real,n
             I_tot = sum(I_strain)
 
             if I_tot>0
-                q_strain = I_strain/I_tot
+                #q_strain = I_strain/I_tot
 
                 #ev_pl[t_idx,:] .= 1.0.-q_strain
                 #ev_pl[t_idx,idxs[q_strain.>0.01]] .= 1.0 

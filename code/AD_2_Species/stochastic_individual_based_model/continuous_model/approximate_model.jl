@@ -39,7 +39,7 @@ end
 function get_event_species_strain(idx,n_events,n_species)
     IDX = idx
     event = inv_IDX(IDX,n_events)
-    IDX = div(IDX-state,n_events)+1
+    IDX = div(IDX-event,n_events)+1
     species = inv_IDX(IDX,n_species)
     pathogen_strains = div(IDX-species,n_species)+1
 
@@ -52,7 +52,8 @@ function update_state!(S::Vector{U},
     species::Integer,        
     event::Integer,
     number_of_events::Integer,
-    σₘ::Real) where {U<:Integer,T<:Integer}
+    n_species::Integer,
+    σₘ::Real) where {U<:Integer}
 
     if event==1 #recover
         I_z = I[pathogen_strains].number
@@ -102,7 +103,7 @@ function run_non_crit_simulations!(S::Vector{U},
             k = pois_rand(λ)
             if k>0
                 event,species,pathogen_strains = get_event_species_strain(i,n_events,n_species) 
-                update_state!(S,I,pathogen_strains,species,event,k,σₘ)    
+                update_state!(S,I,pathogen_strains,species,event,k,n_species,σₘ)    
             end       
         end
     end
@@ -115,8 +116,8 @@ function find_critical_event(r_num,e_Σσ,r_sum,rn_num)
     IDX = 0 
     temp_sum = 0   
     while temp_sum<threshold 
-        IDX += 1 
-        temp_sum += r_num[IDX]*!e_Σσ[IDX]     
+        IDX += 1         
+        temp_sum += r_num[IDX]*!e_Σσ[IDX]        
     end 
     return IDX
 end
@@ -163,7 +164,7 @@ function SI_Gillespie!(S::Vector{U},
                     e_Σσ[get_IDX(1,j,i)] = true #Non critical event
                     e_Σσ[get_IDX(3,j,i)] = true #Non critical event 
 
-                    τ_temp = ϵ*I_z[j]/(rᵢ-rᵣ-rₘ) #τ estimate
+                    τ_temp = ϵ*I_z[j]/abs((rᵢ-rᵣ-rₘ)) #τ estimate
                     if τ_temp<τ_min
                         τ_min=τ_temp                        
                     end   
@@ -179,10 +180,11 @@ function SI_Gillespie!(S::Vector{U},
             rn_num = rand()
             IDX = find_critical_event(r_num,e_Σσ,r_sum,rn_num)            
             event,species,pathogen_strains = get_event_species_strain(IDX,n_events,n_species)
-            update_state!(S,I,pathogen_strains,species,event,1,σₘ)
-        end       
+            update_state!(S,I,pathogen_strains,species,event,1,n_species,σₘ)
+        end  
 
         h = min(Δt,τ_min)
+        
         #simulate non critical events
         run_non_crit_simulations!(S,
         I,        
@@ -218,6 +220,9 @@ function run_Gillespie!(S::Vector{T},
     
     Δt_sample = (t_end-t₀)/n_samples
     sample_nr = 1
+    n_announcements = 100
+    Δt_announcement = (t_end-t₀)/n_announcements
+    announcement_nr = 1
     n_species = length(S)
     while t<t_end
         t = SI_Gillespie!(S,I,n_species,t,p)    
@@ -231,7 +236,11 @@ function run_Gillespie!(S::Vector{T},
                 push!(I_vec,Infected[])
             end
             sample_nr += 1            
-        end       
+        end   
+        if t>t₀+announcement_nr*Δt_announcement
+            println("T: $(t)/$(t_end), announcement: $(announcement_nr)/$(n_announcements)")
+            announcement_nr += 1
+        end    
     end 
         
     return (S_vec,I_vec,t_vec)
@@ -348,6 +357,7 @@ function run_sample(file_name::AbstractString,syspar::SystemParameters,simpar::S
     
     n_samples = simpar.n_samples   
 
+    println("Star: Create sample path")
     run_sample!(S,I,t₀,p,n_samples,file_name,syspar,simpar)
 
     return nothing
@@ -358,8 +368,10 @@ function create_samples(folder_name::AbstractString,syspar::SystemParameters,sim
           
     isdir(folder_name)||mkdir(folder_name)
 
-    Threads.@threads for i in 1:n_traj 
+    #Threads.@threads for i in 1:n_traj 
+    for i in 1:n_traj     
         #Run simulation
+        println("Star: sample $(i)/$(n_traj)")
         run_sample(folder_name*file_name*"_$(i)",syspar,simpar)
         println("Done: sample $(i)/$(n_traj)")
     end
@@ -389,7 +401,7 @@ function work_list()
     #Basic parameters
     R₀_aa_max = 2.0
     R₀_bb_max = 2.0
-    Δᵣ = 1.2
+    Δᵣ = 1.45
     c_ratio = 0.6
 
     γ = 0.1 #Recovery rate    
@@ -397,8 +409,8 @@ function work_list()
     μ_a = 0.2    
     @show μ_b = μ_a+sqrt(2*σ²)*Δᵣ   
     
-    z_min_lim = μ_a-0.05
-    @show z_max_lim = μ_b+0.05
+    z_min_lim = μ_a-0.2
+    @show z_max_lim = μ_b+0.2
     
     c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
     c = c_crit*c_ratio 
@@ -415,19 +427,19 @@ function work_list()
 
     #--Create stochastic simulation parameter-- 
     Nₚ = 300 #Number of strains
-    μₘ = 0.03 #Mutation rate <----
-    σₘ = 0.001#0.01 #0.0158 <----
+    μₘ = 0.01 #Mutation rate <----
+    σₘ = 0.0025#0.01 #0.0158 <----
     t₀ = 0.0 #<----
-    t_end = 2500.0 #<----
+    t_end = 4500.0 #<----
     n_samples = 2500 #<----   
-    ϵ = 0.04
+    ϵ = 0.1
     N_c = 10
 
     simpar = StocSimPar(Nₚ,μₘ,σₘ,t₀,t_end,n_samples,ϵ,N_c)  
 
     n_traj=5
 
-    sub_folder_name = "branching_2_v2/"
+    sub_folder_name = "branching_7_v2/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
 
