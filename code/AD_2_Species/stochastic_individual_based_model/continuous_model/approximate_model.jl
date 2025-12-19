@@ -326,7 +326,7 @@ function run_sample(file_name::AbstractString,syspar::SystemParameters,simpar::S
     #Initial states
     N_a = syspar.N_a     
     N_a>2||error("N_a<3")
-    I_a₀ = 2  
+    I_a₀ = ceil(Int,N_a*(1-γ/β_aa_max)) 
     S₀_a = N_a-I_a₀ 
     N_b = syspar.N_b  
     N_b>2||error("N_b<3") 
