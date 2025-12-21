@@ -1,10 +1,15 @@
-#stochastic individual-based two species evolutionary SIS-model simulation using 
-#A hybrid τ-leap algorithm (Zhu et al. 2011)
-#continuous pathogen strategy space
+#stochastic individual-based two species evolutionary SIS-model simulation using Gillespie algorithm (Direct method)
+#with simple within-host competition (continuous pathogen strategy space) 
+#New strain data managment 
 
 mutable struct Infected
     number::Vector{Integer}  #Number of infected
     strategy::Real #Pathogen strategy
+end
+
+mutable struct I_Status
+    current_size::Integer
+    n_strains::Integer    
 end
 
 #Stochastic simulation parameter
@@ -15,22 +20,7 @@ mutable struct StocSimPar
     t₀::Real #Simualtion start time 
     t_end::Real #Simualtion end time 
     n_samples::Integer #Number of time samples
-    ϵ::Real #0.01 ∼ 0.1 Zhu et al. 2011
-    N_c::Integer #Threshold for critical number of individuals 
-end
-
-#Save Stochastic simulation parameter to CSV-file
-function savestocsimpar(p::StocSimPar,filename::String)
-    param_df = DataFrame(N_p = [p.Nₚ],
-    mu_m = [p.μₘ],
-    sigma_m = [p.σₘ],
-    t_0 = [p.t₀],
-    t_end = [p.t_end],
-    n_samples = [p.n_samples],
-    epsilon = [p.ϵ],
-    N_crit = [p.N_c])
-    CSV.write(filename*".csv",param_df,delim=";")
-    return nothing
+    n_infect_init::Integer #Number of initialized Infected struct    
 end
 
 function Base.:+(a::Infected,b::Infected)
@@ -50,167 +40,133 @@ function inv_IDX(IDX,limit)
         return temp
     end
 end
-function get_event_species_strain(idx,n_events,n_species)
-    IDX = idx
-    event = inv_IDX(IDX,n_events)
-    IDX = div(IDX-event,n_events)+1
-    species = inv_IDX(IDX,n_species)
-    pathogen_strains = div(IDX-species,n_species)+1
 
-    return (event,species,pathogen_strains)
-end
-
-function update_state!(S::Vector{U},
-    I::Vector{Infected},
-    pathogen_strains::Integer,
-    species::Integer,        
-    event::Integer,
-    number_of_events::Integer,
-    n_species::Integer,
-    σₘ::Real) where {U<:Integer}
-
-    if event==1 #recover
-        I_z = I[pathogen_strains].number
-        if sum(I_z)-1>0
-            I[pathogen_strains].number[species] -= number_of_events
-        else
-            popat!(I,pathogen_strains)
+function update_dec_I!(I,strain_idx,I_status::I_Status,n_species)
+    n_strains = I_status.n_strains
+    
+    if strain_idx<=n_strains
+        I[strain_idx].strategy = I[n_strains].strategy        
+        for i in 1:n_species
+            I[strain_idx].number[i] = I[n_strains].number[i]   
         end
-        S[species]+=number_of_events        
-    elseif event==2 #mutation (always critical event)    
-        I_z = I[pathogen_strains].number      
-        resident_strategy = I[pathogen_strains].strategy
-        dₘ = Normal(resident_strategy,σₘ)
-        mutant_strategy = min(max(rand(dₘ),0.0),1.0)
-        
-        I_z_mutant = zeros(eltype(I_z),n_species)
-        I_z_mutant[species]+=1
-        push!(I,Infected(I_z_mutant,mutant_strategy))
-        if sum(I_z)-1>0
-            I[pathogen_strains].number[species] -= 1
-        else
-            popat!(I,pathogen_strains)
-        end       
-    elseif event==3 #infection
-        I[pathogen_strains].number[species] += number_of_events
-        S[species]-=number_of_events       
-    else
-        error("event error: sate either i, m, or r")
+    elseif strain_idx>n_strains
+        error("strain_idx>n_strains")
     end
 
-    return nothing
-end
-
-function run_non_crit_simulations!(S::Vector{U},
-    I::Vector{Infected},
-    σₘ::Real,
-    r_num,
-    e_Σσ,
-    n_e::Integer,
-    τ::Real,
-    n_events::Integer,
-    n_species::Integer) where {U<:Integer}
-
-    for i in 1:n_e 
-        if e_Σσ[i]
-            λ = r_num[i]*τ
-            k = pois_rand(λ)
-            if k>0
-                event,species,pathogen_strains = get_event_species_strain(i,n_events,n_species) 
-                update_state!(S,I,pathogen_strains,species,event,k,n_species,σₘ)    
-            end       
-        end
-    end
-
-    return nothing
-end
-
-function find_critical_event(r_num,e_Σσ,r_sum,rn_num)
-    threshold = rn_num*r_sum  
-    IDX = 0 
-    temp_sum = 0   
-    while temp_sum<threshold 
-        IDX += 1         
-        temp_sum += r_num[IDX]*!e_Σσ[IDX]        
+    I[n_strains].strategy = 0.0
+    for i in 1:n_species
+        I[n_strains].number[i] = 0
     end 
-    return IDX
+
+    n_strains -= 1
+    I_status.n_strains = n_strains 
+    return nothing     
+end
+
+function update_inc_I!(I,mutant_strategy,species,I_status::I_Status,n_species)
+    n_strains = I_status.n_strains
+    current_size = I_status.current_size
+
+    if n_strains<current_size
+        I[n_strains+1].strategy = mutant_strategy
+        I[n_strains+1].number[species] = 1
+    else 
+        I_z_mutant = zeros(eltype(I[1].number),n_species)
+        I_z_mutant[species] = 1
+        push!(I,Infected(I_z_mutant,mutant_strategy))
+        
+        current_size += 1
+        I_status.current_size = current_size
+    end
+
+    n_strains += 1    
+    I_status.n_strains = n_strains 
+    return nothing   
 end
 
 function SI_Gillespie!(S::Vector{U},
     I::Vector{Infected},
+    I_status::I_Status,
     n_species::T,
     t,
     p) where {U<:Integer,T<:Integer}
 
-    c,μₘ,σₘ,γ,K,N,N_crit,ϵ,t_end = p
-
-    if isempty(I)==false
-        n_pathogen_strains = length(I)   
+    c,μₘ,σₘ,γ,K,N,t_end = p
+    if I_status.n_strains>0
+        n_pathogen_strains = I_status.n_strains   
         n_events = 3  
         
         get_IDX(k,j,i) = k+n_events*(j-1)+n_species*n_events*(i-1)
         
-        n_e = n_pathogen_strains*n_species*n_events #Numer of events
+        rnd_nums = rand(2)
+        r_num = zeros(n_pathogen_strains*n_species*n_events) #Rates
+        r_sum = 0
 
-        r_num = zeros(n_e) #Rates (propensities)
-        e_Σσ = zeros(Bool,n_e) #partition events into critical (false) and non critical (true)
-        r_sum = 0 #Sum rate of critical events        
-        τ_min = Inf #Tau leap
-        
+        Δt = Inf
+        pathogen_strains = 1
+        species = 1
+        state = 1   
+
         #Calculate rates
         for i in 1:n_pathogen_strains #Pathogen varriant loop
             I_z = I[i].number
             strategy_z = I[i].strategy
             for j in 1:n_species #Species loop                       
                  
-                rᵣ = I_z[j]*c #k = 1 recovery
-                rₘ = I_z[j]*μₘ #k = 2 virus mutation 
-                rᵢ = S[j]*γ[j](strategy_z)*sum(K[j,:].*I_z./N) #k = 3 infection
+                rᵣ = I_z[j]*c #k = 1
+                rₘ = I_z[j]*μₘ #k = 2
+                rᵢ = S[j]*γ[j](strategy_z)*sum(K[j,:].*I_z./N) #k = 3
 
                 r_num[get_IDX(1,j,i)] = rᵣ
                 r_num[get_IDX(2,j,i)] = rₘ
-                r_num[get_IDX(3,j,i)] = rᵢ   
-                
-                r_sum += rₘ #Mutation events are always critical events 
+                r_num[get_IDX(3,j,i)] = rᵢ
 
-                if I_z[j]>N_crit #Non-crit
-
-                    e_Σσ[get_IDX(1,j,i)] = true #Non critical event
-                    e_Σσ[get_IDX(3,j,i)] = true #Non critical event 
-
-                    τ_temp = ϵ*I_z[j]/abs((rᵢ-rᵣ-rₘ)) #τ estimate
-                    if τ_temp<τ_min
-                        τ_min=τ_temp                        
-                    end   
-                else
-                    r_sum += rᵣ+rᵢ   
-                end
+                r_sum += rᵣ+rₘ+rᵢ                          
             end       
         end
 
-        Δt  = τ_fun(r_sum,rand()) #waiting time for critical event
-
-        if Δt<τ_min #simulate a critical event
-            rn_num = rand()
-            IDX = find_critical_event(r_num,e_Σσ,r_sum,rn_num)            
-            event,species,pathogen_strains = get_event_species_strain(IDX,n_events,n_species)
-            update_state!(S,I,pathogen_strains,species,event,1,n_species,σₘ)
-        end  
-
-        h = min(Δt,τ_min)
+        Δt  = τ_fun(r_sum,rnd_nums[1])
+        r_num /= r_sum #Calculate probabilities for each event
         
-        #simulate non critical events
-        run_non_crit_simulations!(S,
-        I,        
-        σₘ,
-        r_num,
-        e_Σσ,
-        n_e,
-        h,
-        n_events,
-        n_species)  
-        
-        return t+h
+        IDX = findfirst(cumsum(r_num).>rnd_nums[2])              
+        state = inv_IDX(IDX,n_events)
+        IDX = div(IDX-state,n_events)+1        
+        species = inv_IDX(IDX,n_species)
+        pathogen_strains = div(IDX-species,n_species)+1        
+
+        if state==1 #recover
+            I_z = I[pathogen_strains].number
+            if sum(I_z)-1>0
+                I[pathogen_strains].number[species] -= 1
+            else                
+                update_dec_I!(I,pathogen_strains,I_status,n_species)
+            end
+            S[species]+=1            
+
+            return t+Δt 
+        elseif state==2 #mutation     
+            I_z = I[pathogen_strains].number      
+            resident_strategy = I[pathogen_strains].strategy
+            dₘ = Normal(resident_strategy,σₘ)
+            mutant_strategy = min(max(rand(dₘ),0.0),1.0)
+            
+            update_inc_I!(I,mutant_strategy,species,I_status,n_species)
+
+            if sum(I_z)-1>0
+                I[pathogen_strains].number[species] -= 1
+            else
+                update_dec_I!(I,pathogen_strains,I_status,n_species)
+            end             
+            
+            return t+Δt 
+        elseif state==3 #infection
+            I[pathogen_strains].number[species] += 1
+            S[species]-=1            
+
+            return t+Δt 
+        else
+            error("State error: sate either i, m, or r")
+        end        
     else
         println("Extinction")
         return t_end
@@ -219,6 +175,7 @@ end
 
 function run_Gillespie!(S::Vector{T},
     I::Vector{Infected},
+    I_status::I_Status,
     t₀,
     p,
     n_samples::Integer) where {T<:Integer}
@@ -230,7 +187,7 @@ function run_Gillespie!(S::Vector{T},
     push!(S_vec,copy(S))
 
     I_vec = typeof(I)[] 
-    push!(I_vec,deepcopy(I))   
+    push!(I_vec,deepcopy(I[1:I_status.n_strains]))   
     
     Δt_sample = (t_end-t₀)/n_samples
     sample_nr = 1
@@ -239,22 +196,22 @@ function run_Gillespie!(S::Vector{T},
     announcement_nr = 1
     n_species = length(S)
     while t<t_end
-        t = SI_Gillespie!(S,I,n_species,t,p)    
+        t = SI_Gillespie!(S,I,I_status,n_species,t,p)    
 
         if t>t₀+sample_nr*Δt_sample            
             push!(S_vec,copy(S))         
             push!(t_vec,t)            
             if  length(I)>0                              
-                push!(I_vec,deepcopy(I))                  
+                push!(I_vec,deepcopy(I[1:I_status.n_strains]))                  
             else                
                 push!(I_vec,Infected[])
             end
             sample_nr += 1            
-        end   
+        end  
         if t>t₀+announcement_nr*Δt_announcement
-            println("T: $(t)/$(t_end), announcement: $(announcement_nr)/$(n_announcements)")
+            println("T: $(t)/$(t_end), announcement: $(announcement_nr)/$(n_announcements)")           
             announcement_nr += 1
-        end    
+        end      
     end 
         
     return (S_vec,I_vec,t_vec)
@@ -281,7 +238,7 @@ function draw_evolution(t_vec,I_vec,img_name::String,z_start::Real,z_end::Real,n
             
             I_tot = sum(I_strain)
 
-            if I_tot>0                           
+            if I_tot>0                
                 ev_pl[t_idx,idxs] .= 0.0           
             end 
         end       
@@ -318,8 +275,8 @@ function draw_compartments(t_vec,I_vec,S_vec,img_name::String)
     savefig(plt,img_name*".svg")
 end
 
-function run_sample!(S,I,t₀,p,n_samples,file_name::AbstractString,syspar::SystemParameters,simpar::StocSimPar)     
-    S_vec,I_vec,t_vec = run_Gillespie!(S,I,t₀,p,n_samples) 
+function run_sample!(S,I,I_status::I_Status,t₀,p,n_samples,file_name::AbstractString,syspar::SystemParameters,simpar::StocSimPar)     
+    S_vec,I_vec,t_vec = run_Gillespie!(S,I,I_status::I_Status,t₀,p,n_samples) 
 
     JLD2.@save file_name*".jld2" S_vec I_vec t_vec syspar simpar
 
@@ -355,10 +312,14 @@ function run_sample(file_name::AbstractString,syspar::SystemParameters,simpar::S
     N_b>2||error("N_b<3") 
     I_b₀ = 0
     S₀_b = N_b-I_b₀ 
-    σₘ = simpar.σₘ
+    σₘ = simpar.σₘ    
     
     S = [S₀_a,S₀_b]     
-    I = [Infected([I_a₀,I_b₀],z_start)] 
+    I = [Infected([0,0],0.0) for i in 1:simpar.n_infect_init]
+    I[1].strategy = z_start
+    I[1].number = [I_a₀,I_b₀]   
+    
+    I_status =I_Status(simpar.n_infect_init,1)
         
     t₀ = simpar.t₀
     t_end = simpar.t_end
@@ -367,12 +328,11 @@ function run_sample(file_name::AbstractString,syspar::SystemParameters,simpar::S
     τ = (τ_a,τ_b)
     N = [N_a,N_b]
 
-    p = γ,μₘ,σₘ,τ,β_max,N,simpar.N_c,simpar.ϵ,t_end
-    
+    p = γ,μₘ,σₘ,τ,β_max,N,t_end
+
     n_samples = simpar.n_samples   
 
-    println("Star: Create sample path")
-    run_sample!(S,I,t₀,p,n_samples,file_name,syspar,simpar)
+    run_sample!(S,I,I_status,t₀,p,n_samples,file_name,syspar,simpar)
 
     return nothing
 end
@@ -382,10 +342,9 @@ function create_samples(folder_name::AbstractString,syspar::SystemParameters,sim
           
     isdir(folder_name)||mkdir(folder_name)
 
-    Threads.@threads for i in 1:n_traj 
-    #for i in 1:n_traj     
+    #Threads.@threads for i in 1:n_traj 
+    for i in 1:n_traj 
         #Run simulation
-        println("Star: sample $(i)/$(n_traj)")
         run_sample(folder_name*file_name*"_$(i)",syspar,simpar)
         println("Done: sample $(i)/$(n_traj)")
     end
@@ -415,7 +374,7 @@ function work_list()
     #Basic parameters
     R₀_aa_max = 2.0
     R₀_bb_max = 2.0
-    Δᵣ = 1.62
+    Δᵣ = 1.45
     c_ratio = 0.6
 
     γ = 0.1 #Recovery rate    
@@ -423,8 +382,8 @@ function work_list()
     μ_a = 0.2    
     @show μ_b = μ_a+sqrt(2*σ²)*Δᵣ   
     
-    z_min_lim = μ_a-0.1
-    @show z_max_lim = μ_b+0.1
+    z_min_lim = μ_a-0.05
+    @show z_max_lim = μ_b+0.05
     
     c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
     c = c_crit*c_ratio 
@@ -444,16 +403,15 @@ function work_list()
     μₘ = 0.01 #Mutation rate <----
     σₘ = 0.003#0.01 #0.0158 <----
     t₀ = 0.0 #<----
-    t_end = 4500.0 #<----
-    n_samples = 2500 #<----   
-    ϵ = 0.1
-    N_c = 10
+    t_end = 2500.0 #<----
+    n_samples = 2500 #<----
+    n_infect_init = 2000   
 
-    simpar = StocSimPar(Nₚ,μₘ,σₘ,t₀,t_end,n_samples,ϵ,N_c)  
-    
-    n_traj=5
+    simpar = StocSimPar(Nₚ,μₘ,σₘ,t₀,t_end,n_samples,n_infect_init)  
 
-    sub_folder_name = "bistable_2_approx/"
+    n_traj=1
+
+    sub_folder_name = "branching_1_v2_5/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
 
@@ -466,10 +424,64 @@ function work_list()
     #Create sample figures
     create_sample_fig(data_folder_name,figure_folder,n_traj,z_min_lim,z_max_lim,2000)
 
-    savestocsimpar(simpar,data_folder_name*"stocsimpar.csv")
-    savesystemparameters(syspar,data_folder_name*"simpar.csv")
-
     return nothing 
 end
 
+function test()
+    n_infect_init = 100
+    n_species = 2
+    N_a = 10^3
+    N_b = 10^3
+    I_a₀ = 1
+    I_b₀ = 0
+    z_start = 0.2
+
+    S₀_a = N_a-1
+    S₀_b = N_b-1
+
+    S = [S₀_a,S₀_b]     
+    I = [Infected([0,0],0.0) for i in 1:n_infect_init]
+    I[1].strategy = z_start
+    I[1].number = [1,0]   
+    I[2].strategy = 0.3
+    I[2].number = [0,1]   
+
+    I = [Infected(Integer[505, 17], 0.2),
+    Infected(Integer[3, 1], 0.19500310455576977),
+    Infected(Integer[1, 0], 0.199013890379265),
+    Infected(Integer[2, 0], 0.2001349392249399),
+    Infected(Integer[1, 0], 0.19820726025394103),
+    Infected(Integer[1, 0], 0.20248236230860323),
+    Infected(Integer[1, 0], 0.19824609141009003),
+    Infected(Integer[1, 0], 0.20105627152160124),
+    Infected(Integer[1, 0], 0.1973647818040737),
+    Infected(Integer[1, 0], 0.2037360967974426),
+    Infected(Integer[1, 0], 0.2015482459146254),
+    Infected(Integer[1, 0], 0.2033069542024971),
+    Infected(Integer[1, 0], 0.1950257247868975)] 
+        
+    I_status = I_Status(length(I),length(I))
+
+    println("A: $(sum([I[i].number[1] for i in 1:I_status.n_strains])) B: $(sum([I[i].number[2] for i in 1:I_status.n_strains]))")
+
+    @show I_status
+
+    pathogen_strains = 11
+    species = 1    
+    
+    I_z = I[pathogen_strains].number
+    if sum(I_z)-1>0
+        I[pathogen_strains].number[species] -= 1
+    else                
+        update_dec_I!(I,pathogen_strains,I_status,n_species)
+    end
+    
+    @show I_status
+    @show I[pathogen_strains]
+    @show I[I_status.n_strains]
+    println(I)
+    
+    println("A: $(sum([I[i].number[1] for i in 1:I_status.n_strains])) B: $(sum([I[i].number[2] for i in 1:I_status.n_strains]))") 
+end
+#test()
 work_list()

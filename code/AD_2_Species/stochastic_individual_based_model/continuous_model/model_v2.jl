@@ -149,15 +149,14 @@ function run_Gillespie!(S::Vector{T},
     
     Δt_sample = (t_end-t₀)/n_samples
     sample_nr = 1
-    n_announcements = 500
+    n_announcements = 100
     Δt_announcement = (t_end-t₀)/n_announcements
     announcement_nr = 1
     n_species = length(S)
     while t<t_end
         t = SI_Gillespie!(S,I,n_species,t,p)    
 
-        if t>t₀+sample_nr*Δt_sample
-            #println("$(sample_nr)/$(n_samples)")
+        if t>t₀+sample_nr*Δt_sample            
             push!(S_vec,copy(S))         
             push!(t_vec,t)            
             if  length(I)>0                              
@@ -168,7 +167,7 @@ function run_Gillespie!(S::Vector{T},
             sample_nr += 1            
         end  
         if t>t₀+announcement_nr*Δt_announcement
-            println("T: $(t)/$(t_end), announcement: $(announcement_nr)/$(n_announcements)")
+            println("T: $(t)/$(t_end), announcement: $(announcement_nr)/$(n_announcements)")              
             announcement_nr += 1
         end      
     end 
@@ -188,7 +187,7 @@ function draw_evolution(t_vec,I_vec,img_name::String,z_start::Real,z_end::Real,n
     Δz = (z_end-z_start)/(nₚ-1)
     strategy_strain = [z_start+Δz*i for i in 0:nₚ-1]    
 
-    ev_pl = zeros(n_time,nₚ) #evolution plot     
+    ev_pl = ones(n_time,nₚ) #evolution plot     
 
     for t_idx in 1:n_time
         if !isempty(I_vec[t_idx])
@@ -197,12 +196,8 @@ function draw_evolution(t_vec,I_vec,img_name::String,z_start::Real,z_end::Real,n
             
             I_tot = sum(I_strain)
 
-            if I_tot>0
-                #q_strain = I_strain/I_tot
-
-                #ev_pl[t_idx,:] .= 1.0.-q_strain
-                #ev_pl[t_idx,idxs[q_strain.>0.01]] .= 1.0 
-                ev_pl[t_idx,idxs] .= 1.0           
+            if I_tot>0                
+                ev_pl[t_idx,idxs] .= 0.0           
             end 
         end       
     end    
@@ -269,7 +264,7 @@ function run_sample(file_name::AbstractString,syspar::SystemParameters,simpar::S
     #Initial states
     N_a = syspar.N_a     
     N_a>2||error("N_a<3")
-    I_a₀ = 2  
+    I_a₀ = ceil(Int,N_a*(1-γ/β_aa_max)) 
     S₀_a = N_a-I_a₀ 
     N_b = syspar.N_b  
     N_b>2||error("N_b<3") 
@@ -301,7 +296,8 @@ function create_samples(folder_name::AbstractString,syspar::SystemParameters,sim
           
     isdir(folder_name)||mkdir(folder_name)
 
-    Threads.@threads for i in 1:n_traj 
+    #Threads.@threads for i in 1:n_traj 
+    for i in 1:n_traj
         #Run simulation
         run_sample(folder_name*file_name*"_$(i)",syspar,simpar)
         println("Done: sample $(i)/$(n_traj)")
@@ -332,7 +328,7 @@ function work_list()
     #Basic parameters
     R₀_aa_max = 2.0
     R₀_bb_max = 2.0
-    Δᵣ = 1.2
+    Δᵣ = 1.45
     c_ratio = 0.6
 
     γ = 0.1 #Recovery rate    
@@ -340,8 +336,8 @@ function work_list()
     μ_a = 0.2    
     @show μ_b = μ_a+sqrt(2*σ²)*Δᵣ   
     
-    z_min_lim = μ_a-0.05
-    @show z_max_lim = μ_b+0.05
+    z_min_lim = μ_a-0.1
+    @show z_max_lim = μ_b+0.1
     
     c_crit = min(R₀_aa_max,R₀_bb_max)*2/(R₀_aa_max+R₀_bb_max)
     c = c_crit*c_ratio 
@@ -359,16 +355,16 @@ function work_list()
     #--Create stochastic simulation parameter-- 
     Nₚ = 300 #Number of strains
     μₘ = 0.03 #Mutation rate <----
-    σₘ = 0.001#0.01 #0.0158 <----
+    σₘ = 0.003#0.01 #0.0158 <----
     t₀ = 0.0 #<----
     t_end = 2500.0 #<----
     n_samples = 2500 #<----   
 
     simpar = StocSimPar(Nₚ,μₘ,σₘ,t₀,t_end,n_samples)  
 
-    n_traj=5
+    n_traj=1
 
-    sub_folder_name = "branching_2_v2/"
+    sub_folder_name = "branching_1_v2/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
 
