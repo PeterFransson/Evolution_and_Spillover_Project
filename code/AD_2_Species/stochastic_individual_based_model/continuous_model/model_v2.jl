@@ -354,7 +354,7 @@ function work_list()
 
     #--Create stochastic simulation parameter-- 
     Nₚ = 300 #Number of strains
-    μₘ = 0.03 #Mutation rate <----
+    μₘ = 0.01 #Mutation rate <----
     σₘ = 0.003#0.01 #0.0158 <----
     t₀ = 0.0 #<----
     t_end = 2500.0 #<----
@@ -364,7 +364,7 @@ function work_list()
 
     n_traj=1
 
-    sub_folder_name = "branching_1_v2/"
+    sub_folder_name = "branching_v2/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
 

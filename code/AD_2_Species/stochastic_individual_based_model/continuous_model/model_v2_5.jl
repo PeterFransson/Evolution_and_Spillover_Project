@@ -411,7 +411,7 @@ function work_list()
 
     n_traj=1
 
-    sub_folder_name = "branching_1_v2_5/"
+    sub_folder_name = "branching_v2_5/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
 

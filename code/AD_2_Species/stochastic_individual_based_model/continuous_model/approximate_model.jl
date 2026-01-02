@@ -415,7 +415,7 @@ function work_list()
     #Basic parameters
     R₀_aa_max = 2.0
     R₀_bb_max = 2.0
-    Δᵣ = 1.62
+    Δᵣ = 1.45
     c_ratio = 0.6
 
     γ = 0.1 #Recovery rate    
@@ -444,7 +444,7 @@ function work_list()
     μₘ = 0.01 #Mutation rate <----
     σₘ = 0.003#0.01 #0.0158 <----
     t₀ = 0.0 #<----
-    t_end = 4500.0 #<----
+    t_end = 2500.0 #<----
     n_samples = 2500 #<----   
     ϵ = 0.1
     N_c = 10
@@ -453,7 +453,7 @@ function work_list()
     
     n_traj=5
 
-    sub_folder_name = "bistable_2_approx/"
+    sub_folder_name = "branching_test_approx/"
     data_folder_name = "./output/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
     figure_folder = "./fig/AD_2_Species/stochastic_simulation/continuous_model/"*sub_folder_name
 

@@ -21,7 +21,7 @@ function savesystemparameters(p::SystemParameters,filename::String)
     z_b = [p.z_b],
     c_aa = [p.c_aa],
     c_bb = [p.c_bb],
-    c_ab = [p.c_bb],
+    c_ab = [p.c_ab],
     N_a = [p.N_a],
     N_b = [p.N_b],
     gamma_a = [p.γ_a],
