@@ -2,42 +2,16 @@ using DifferentialEquations,Statistics, Distributions, Plots, StatsBase
 using LinearAlgebra, NLsolve, Roots, Sobol
 using DataFrames, CSV, JLD2, PoissonRandom
 
+#--Function and struct definitions--
 include("code/auxiliary_funs/bisection.jl")
-#include("code/example_1/ex1.jl")
-#include("code/Trait_Plot/Trait_Plot.jl")
-#include("code/example_2/ex2.jl")
-#include("code/example_3/ex3.jl")
-#include("code/example_4/ex4.jl")
-#include("./code/example_5/ex5.jl")
-#include("./code/example_6/ex6.jl")
-#include("./code/example_7/ex7.jl")
-#include("./code/example_9/ex9.jl")
-#include("./code/AD_example_1/code.jl")
-#include("./code/AD_example_1/PIP_code.jl")
-#include("./code/AD_example_1/AD_hill_climb.jl")
-#include("./code/AD_example_1/PIP_code_alt.jl")
-#include("./code/AD_example_1/within_host_PIP_code.jl")
 include("code/solve_cubic_code/solve_cubic.jl")
 include("code/AD_2_Species/code.jl")
 include("code/AD_2_Species/draw_PIP.jl")
 include("code/AD_2_Species/find_host_shifts/find_host_shifts.jl")
-#include("code/AD_2_Species/analysis.jl")
+
+
+#--Scripts to run simulations and draw figures--
 #include("code/AD_2_Species/draw_TEP.jl")
-#include("code/AD_2_Species/draw_SelectionGrad.jl")
-#include("code/AD_2_Species/parameter_influence/interspecies_contact/inter_contact.jl")
-#include("./code/AD_2_Species/misc_scrips/test_case_III.jl")
-#include("code/AD_2_Species/misc_scrips/test_R0_eq.jl")
-#include("code/AD_2_Species/parameter_influence/global_model_check/run_check.jl")
-#include("code/AD_2_Species/stochastic_individual_based_model/discrete_model/model.jl")
-#include("code/AD_2_Species/misc_scripts/test_find_system_R0_tr.jl")
-#include("code/AD_2_Species/misc_scripts/pip_generation.jl")
-#include("code/AD_2_Species//misc_scripts/sing_strat_generation.jl")
-#include("code/AD_2_Species//misc_scripts/generate_gif_pip.jl")
-#include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/model.jl")
-#include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/model_v2.jl")
-#include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/model_v2_5.jl")
-include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/approximate_model.jl")
-#include("code/AD_2_Species/misc_scripts/eq_find_test.jl")
-#include("code/AD_2_Species/PIP_parameter_check/PIP_parameter_check.jl")
-#include("code/AD_2_Species/misc_scripts/test_number_parameter_for_PIP.jl")
-#include("code/AD_2_Species/interspecific_contact_influence/interspecific_contact_influence.jl")
+include("code/AD_2_Species/stochastic_individual_based_model/continuous_model/approximate_model.jl") #Code to run stochastic simulations and create sample path figures
+#include("code/AD_2_Species/PIP_parameter_check/PIP_parameter_check.jl") #Code to run parameter sweep
+#include("code/AD_2_Species/interspecific_contact_influence/interspecific_contact_influence.jl") #Code to draw the effect of interspecific contact intensity and host-species similarity
